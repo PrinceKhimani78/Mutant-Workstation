@@ -40,10 +40,54 @@ if [ -f cpanel_build/server.js ]; then
   rm -f cpanel_build/server.js.bak
 fi
 
-# Create crash-safe diagnostic cPanel entry point (app.js)
+# Create cPanel entry point (app.js) with process.exit interception
 cat << 'EOF' > cpanel_build/app.js
 const fs = require('fs');
 const http = require('http');
+
+let bootError = null;
+
+function renderErrorScreen(err) {
+  bootError = err;
+  const stackText = (err && err.stack) || String(err);
+  try {
+    fs.writeFileSync('boot_error.log', stackText);
+  } catch (e) {}
+
+  try {
+    const server = http.createServer((req, res) => {
+      res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>Mutant Workstation Boot Error</title></head>
+          <body style="font-family: monospace; padding: 25px; background: #0f172a; color: #f8fafc;">
+            <h1 style="color: #ef4444; border-bottom: 1px solid #334155; padding-bottom: 10px;">⚠️ Mutant Workstation Boot Error</h1>
+            <p style="color: #94a3b8;">The Next.js server encountered an initialization error:</p>
+            <pre style="background: #1e293b; padding: 16px; border-radius: 8px; color: #fca5a5; overflow-x: auto; font-size: 14px; line-height: 1.5;">${stackText}</pre>
+          </body>
+        </html>
+      `);
+    });
+    server.listen(process.env.PORT || 3000);
+  } catch (e) {}
+}
+
+// Override process.exit so Next.js catch blocks cannot crash the process into a 503
+process.exit = function(code) {
+  console.error('Interception: process.exit called with code', code);
+  if (bootError) {
+    renderErrorScreen(bootError);
+  }
+};
+
+process.on('uncaughtException', (err) => {
+  renderErrorScreen(err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  renderErrorScreen(reason);
+});
 
 process.env.NODE_ENV = 'production';
 process.env.PRISMA_CLIENT_ENGINE_TYPE = 'library';
@@ -51,33 +95,7 @@ process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:./prisma/dev.db';
 
 process.chdir(__dirname);
 
-let initError = null;
-
-try {
-  require('./server.js');
-} catch (err) {
-  initError = err;
-  try {
-    fs.writeFileSync('init_error.txt', err.stack || String(err));
-  } catch (e) {}
-}
-
-if (initError) {
-  const server = http.createServer((req, res) => {
-    res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(`
-      <html>
-        <body style="font-family: sans-serif; padding: 20px; background: #0f172a; color: #f8fafc;">
-          <h1 style="color: #ef4444;">Mutant Workstation Deployment Error</h1>
-          <p>The Next.js production server encountered an error during boot:</p>
-          <pre style="background: #1e293b; padding: 15px; border-radius: 8px; color: #fca5a5; overflow-x: auto;">${initError.stack}</pre>
-        </body>
-      </html>
-    `);
-  });
-  const listenPort = process.env.PORT || 3000;
-  server.listen(listenPort);
-}
+require('./server.js');
 EOF
 
 # Zip the bundle
