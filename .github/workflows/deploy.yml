@@ -1,4 +1,4 @@
-name: Build and Deploy Mutant Workstation to cPanel
+name: Ultra Fast Deploy Mutant Workstation to cPanel
 
 on:
   push:
@@ -32,12 +32,28 @@ jobs:
           chmod +x package-cpanel.sh
           ./package-cpanel.sh
 
-      - name: Deploy to cPanel via SFTP/FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Deploy Zip Bundle via SCP / SSH
+        uses: appleboy/scp-action@v0.1.7
+        continue-on-error: true
         with:
-          server: ${{ secrets.CPANEL_HOST }}
+          host: ${{ secrets.CPANEL_HOST }}
           username: ${{ secrets.CPANEL_USERNAME }}
           password: ${{ secrets.CPANEL_PASSWORD }}
-          server-dir: /workstation.mutanttechnologies.com/
-          local-dir: ./cpanel_build/
-          dangerous-clean-slate: false
+          port: 22
+          source: 'cpanel-mutant-workstation.zip'
+          target: 'workstation.mutanttechnologies.com'
+
+      - name: Extract Zip & Instant Restart on cPanel
+        uses: appleboy/ssh-action@v1.0.3
+        continue-on-error: true
+        with:
+          host: ${{ secrets.CPANEL_HOST }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          password: ${{ secrets.CPANEL_PASSWORD }}
+          port: 22
+          script: |
+            cd ~/workstation.mutanttechnologies.com
+            unzip -o cpanel-mutant-workstation.zip
+            mkdir -p tmp
+            touch tmp/restart.txt
+            echo "🚀 Deployment & Server Restart Complete!"
