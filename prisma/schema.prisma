@@ -1,6 +1,13 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled connection (PgBouncer, port 6543) — used for normal app queries.
+  // Serverless functions open a fresh connection per invocation; without
+  // pooling this exhausts Postgres' connection limit almost immediately.
+  url       = env("DATABASE_URL")
+  // Direct connection (port 5432) — used only for schema changes (prisma db
+  // push / migrate). PgBouncer in transaction mode doesn't reliably support
+  // the DDL Prisma needs for those.
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
