@@ -1,12 +1,13 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  // NOTE: only DATABASE_URL is required for now, so the app can build and go
-  // live without the full Supabase pooled/direct connection split. Once
-  // that's wired up, add back:
-  //   directUrl = env("DIRECT_URL")   // direct (port 5432) connection, for
-  //                                   // prisma db push / migrate only
-  // and point DATABASE_URL at the pooled (port 6543, ?pgbouncer=true) string.
+  provider  = "postgresql"
+  // Pooled connection (PgBouncer/Supavisor, port 6543) — used for normal app
+  // queries. Serverless functions open a fresh connection per invocation;
+  // without pooling this exhausts Postgres' connection limit almost immediately.
+  url       = env("DATABASE_URL")
+  // Direct connection (port 5432) — used only for schema changes (prisma db
+  // push / migrate). The pooler's transaction mode doesn't reliably support
+  // the DDL Prisma needs for those.
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
