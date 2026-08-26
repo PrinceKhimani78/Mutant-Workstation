@@ -15,7 +15,26 @@ async function main() {
   await prisma.invoice.deleteMany({});
   await prisma.client.deleteMany({});
   await prisma.lead.deleteMany({});
+  await prisma.pipelineStage.deleteMany({});
   await prisma.knowledgeArticle.deleteMany({});
+
+  // 0. Create default pipeline stages
+  const STAGE_DEFS: { name: string; color: string }[] = [
+    { name: 'New', color: '#2563eb' },
+    { name: 'Contacted', color: '#7c3aed' },
+    { name: 'Discovery', color: '#d97706' },
+    { name: 'Proposal Sent', color: '#fc6203' },
+    { name: 'Negotiation', color: '#db2777' },
+    { name: 'Won', color: '#059669' },
+    { name: 'Lost', color: '#6b7280' },
+  ];
+  const stageByName: Record<string, string> = {};
+  for (let i = 0; i < STAGE_DEFS.length; i++) {
+    const stage = await prisma.pipelineStage.create({
+      data: { name: STAGE_DEFS[i].name, color: STAGE_DEFS[i].color, order: i },
+    });
+    stageByName[stage.name] = stage.id;
+  }
 
   // Hash standard password: "password123"
   const passwordHash = await bcrypt.hash('password123', 10);
@@ -84,6 +103,8 @@ async function main() {
       contactPerson: 'Sarah Jenkins',
       email: 'sarah@acmeglobal.com',
       phone: '+1 (555) 234-5678',
+      currency: 'USD',
+      billingType: 'Retainer',
       retainerValue: 12500,
       renewalDate: new Date('2026-11-15'),
       services: 'Full Stack Web App, SEO, Meta Ads',
@@ -98,9 +119,27 @@ async function main() {
       contactPerson: 'Dr. Robert Vance',
       email: 'vance@apexhealth.io',
       phone: '+1 (555) 876-5432',
+      currency: 'USD',
+      billingType: 'Retainer',
       retainerValue: 8500,
       renewalDate: new Date('2026-09-30'),
       services: 'Next.js Platform, UI/UX Redesign',
+      assignedPmId: aman.id,
+      status: 'Active',
+    },
+  });
+
+  const client3 = await prisma.client.create({
+    data: {
+      company: 'Nexus Logistics India',
+      contactPerson: 'Rohan Mehta',
+      email: 'rohan@nexuslogistics.in',
+      phone: '+91 98765 43220',
+      currency: 'INR',
+      billingType: 'Hourly',
+      hourlyRate: 1500,
+      weeklyHourLimit: 20,
+      services: 'Upwork Hourly Contract — Backend & DevOps',
       assignedPmId: aman.id,
       status: 'Active',
     },
@@ -116,7 +155,7 @@ async function main() {
         phone: '+1 (555) 019-2831',
         source: 'Upwork Profile 1 Prince',
         assignedSalespersonId: prince.id,
-        status: 'Proposal Sent',
+        stageId: stageByName['Proposal Sent'],
         budget: 25000,
         probability: 80,
         proposalValue: 25000,
@@ -129,7 +168,7 @@ async function main() {
         phone: '+44 20 7946 0912',
         source: 'LinkedIn',
         assignedSalespersonId: het.id,
-        status: 'Discovery',
+        stageId: stageByName['Discovery'],
         budget: 45000,
         probability: 60,
         proposalValue: 40000,
@@ -142,7 +181,7 @@ async function main() {
         phone: '+1 (555) 345-6789',
         source: 'Upwork Profile 2 Het',
         assignedSalespersonId: het.id,
-        status: 'Negotiation',
+        stageId: stageByName['Negotiation'],
         budget: 18000,
         probability: 90,
         proposalValue: 18000,
@@ -155,7 +194,7 @@ async function main() {
         phone: '+65 6789 1234',
         source: 'Website',
         assignedSalespersonId: prince.id,
-        status: 'New',
+        stageId: stageByName['New'],
         budget: 30000,
         probability: 50,
         proposalValue: 30000,
@@ -168,7 +207,7 @@ async function main() {
         phone: '+1 (555) 998-1122',
         source: 'Upwork Profile 3 Aman',
         assignedSalespersonId: aman.id,
-        status: 'Won',
+        stageId: stageByName['Won'],
         budget: 15000,
         probability: 100,
         proposalValue: 15000,

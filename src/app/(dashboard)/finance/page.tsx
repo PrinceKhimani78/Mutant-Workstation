@@ -1,55 +1,88 @@
 'use client';
 
-import React from 'react';
-import { DollarSign, FileText, TrendingUp, CheckCircle, Clock } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { DollarSign, ShieldAlert } from 'lucide-react';
+
+const invoices = [
+  { number: 'INV-2026-001', client: 'Acme Global Ventures', amount: 12500, currency: 'USD', status: 'Paid', date: '2026-08-01' },
+  { number: 'INV-2026-002', client: 'Apex Health Systems', amount: 8500, currency: 'USD', status: 'Sent', date: '2026-08-20' },
+  { number: 'INV-2026-003', client: 'Nexus Logistics India', amount: 480000, currency: 'INR', status: 'Paid', date: '2026-08-15' },
+];
+
+const SYMBOL: Record<string, string> = { USD: '$', INR: '₹' };
 
 export default function FinancePage() {
-  const invoices = [
-    { number: 'INV-2026-001', client: 'Acme Global Ventures', amount: 12500, status: 'Paid', date: '2026-08-01' },
-    { number: 'INV-2026-002', client: 'Apex Health Systems', amount: 8500, status: 'Sent', date: '2026-08-20' },
-  ];
+  const router = useRouter();
+  const [access, setAccess] = useState<'checking' | 'granted' | 'denied'>('checking');
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.user?.role === 'Owner') setAccess('granted');
+        else setAccess('denied');
+      })
+      .catch(() => setAccess('denied'));
+  }, []);
+
+  if (access === 'checking') return null;
+
+  if (access === 'denied') {
+    return (
+      <div className="max-w-lg mx-auto mt-16 card p-8 text-center space-y-3">
+        <ShieldAlert className="w-8 h-8 text-[var(--muted-foreground)] mx-auto" />
+        <h2 className="text-sm font-semibold text-[var(--foreground)]">Owner access only</h2>
+        <p className="text-xs text-[var(--muted-foreground)]">Revenue and invoicing figures are only visible to the account owner.</p>
+        <button onClick={() => router.push('/dashboard')} className="btn-primary px-4 py-2 rounded-lg text-xs font-semibold">
+          Back to dashboard
+        </button>
+      </div>
+    );
+  }
+
+  const byCurrency = (currency: string, status?: string) =>
+    invoices
+      .filter((i) => i.currency === currency && (!status || i.status === status))
+      .reduce((sum, i) => sum + i.amount, 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-extrabold text-white flex items-center gap-2.5">
-            <DollarSign className="w-5 h-5 text-[#fc6203]" />
-            <span>Finance & Invoicing Engine</span>
-          </h2>
-          <p className="text-xs text-[#94a3b8]">Invoices, recurring payments, MRR, profitability, and financial reports.</p>
-        </div>
+    <div className="space-y-5 max-w-full">
+      <div>
+        <h2 className="text-lg font-bold text-[var(--foreground)] flex items-center gap-2">
+          <DollarSign className="w-4.5 h-4.5 text-[var(--primary)]" />
+          <span>Finance & invoicing</span>
+        </h2>
+        <p className="text-xs text-[var(--muted-foreground)]">Invoices, MRR, and profitability — visible only to you.</p>
       </div>
 
-      {/* Finance Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-5 rounded-2xl glass-card border border-[#1e293b]">
-          <p className="text-xs font-semibold text-[#94a3b8]">Monthly Recurring Revenue (MRR)</p>
-          <p className="text-2xl font-extrabold text-[#fc6203] mt-1">$21,000 / mo</p>
+      {/* Finance Stats — split by currency, no conversion */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="card p-4">
+          <p className="text-xs text-[var(--muted-foreground)]">Paid this period</p>
+          <p className="text-xl font-bold text-[var(--success)] mt-1">${byCurrency('USD', 'Paid').toLocaleString()}</p>
+          <p className="text-sm font-semibold text-[var(--success)]">₹{byCurrency('INR', 'Paid').toLocaleString()}</p>
         </div>
-        <div className="p-5 rounded-2xl glass-card border border-[#1e293b]">
-          <p className="text-xs font-semibold text-[#94a3b8]">Paid Invoices (Aug)</p>
-          <p className="text-2xl font-extrabold text-emerald-400 mt-1">$12,500</p>
-        </div>
-        <div className="p-5 rounded-2xl glass-card border border-[#1e293b]">
-          <p className="text-xs font-semibold text-[#94a3b8]">Pending Outstanding Invoices</p>
-          <p className="text-2xl font-extrabold text-amber-400 mt-1">$8,500</p>
+        <div className="card p-4">
+          <p className="text-xs text-[var(--muted-foreground)]">Outstanding</p>
+          <p className="text-xl font-bold text-[var(--warning)] mt-1">${byCurrency('USD', 'Sent').toLocaleString()}</p>
+          <p className="text-sm font-semibold text-[var(--warning)]">₹{byCurrency('INR', 'Sent').toLocaleString()}</p>
         </div>
       </div>
 
       {/* Invoices List */}
-      <div className="rounded-2xl glass-card border border-[#1e293b] p-6 space-y-4">
-        <h3 className="text-sm font-bold text-white">Recent Invoices</h3>
+      <div className="card p-5 sm:p-6 space-y-3">
+        <h3 className="text-sm font-semibold text-[var(--foreground)]">Recent invoices</h3>
         <div className="space-y-2">
           {invoices.map((inv) => (
-            <div key={inv.number} className="p-4 rounded-xl bg-[#0b0f17]/70 border border-[#1e293b] flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-white">{inv.number}</p>
-                <p className="text-xs text-[#94a3b8]">{inv.client} • Issued {inv.date}</p>
+            <div key={inv.number} className="p-3.5 rounded-lg bg-[var(--surface-muted)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[var(--foreground)]">{inv.number}</p>
+                <p className="text-xs text-[var(--muted-foreground)] truncate">{inv.client} · Issued {inv.date}</p>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-bold font-mono text-white">${inv.amount.toLocaleString()}</span>
-                <span className={`px-2.5 py-0.5 rounded text-xs font-mono font-semibold ${inv.status === 'Paid' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-sm font-semibold text-[var(--foreground)]">{SYMBOL[inv.currency]}{inv.amount.toLocaleString()}</span>
+                <span className={`badge px-2.5 py-0.5 text-xs ${inv.status === 'Paid' ? 'bg-[var(--success-soft)] text-[var(--success)]' : 'bg-[var(--warning-soft)] text-[var(--warning)]'}`}>
                   {inv.status}
                 </span>
               </div>

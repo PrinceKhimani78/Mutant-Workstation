@@ -25,10 +25,13 @@ model User {
   assignedLeads     Lead[]           @relation("AssignedSales")
   assignedProjects  ProjectMember[]
   assignedTasks     Task[]           @relation("TaskAssignee")
+  createdTasks      Task[]           @relation("TaskCreator")
   timeLogs          TimeLog[]
   leaveRequests     LeaveRequest[]   @relation("EmployeeLeaves")
   approvedLeaves    LeaveRequest[]   @relation("ApprovedLeaves")
   auditLogs         AuditLog[]
+  comments          Comment[]
+  activeTimer       ActiveTimer?
 }
 
 model Lead {
@@ -45,16 +48,68 @@ model Lead {
   source              String   // Upwork Profile 1 Prince, Upwork Profile 2 Het, Upwork Profile 3 Aman, LinkedIn, Cold Email, Website, Referral, Instagram, Facebook, Local, Other
   assignedSalespersonId String?
   assignedSalesperson   User?    @relation("AssignedSales", fields: [assignedSalespersonId], references: [id])
-  status              String   @default("New") // New, Contacted, Discovery, Proposal Sent, Negotiation, Won, Lost, Follow Up Later
+  stageId             String
+  stage               PipelineStage @relation(fields: [stageId], references: [id])
   budget              Float?
   probability         Int?     @default(50)
   expectedCloseDate   DateTime?
   proposalValue       Float?
   notes               String?
+  isGhosted           Boolean  @default(false)
+  lastContactedAt     DateTime?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   activities          LeadActivity[]
+  tags                Tag[]              @relation("LeadTags")
+  customFieldValues   CustomFieldValue[]
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  color     String   @default("#6b7280")
+  createdAt DateTime @default(now())
+
+  leads     Lead[]   @relation("LeadTags")
+}
+
+// User-defined fields attached to leads/contacts. `options` holds a JSON array of
+// strings for the selection-based types (dropdown/radio/checkbox); null otherwise.
+model CustomFieldDefinition {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   // single_line, multi_line, textbox_list, number, monetary, phone, email, url, dropdown_single, dropdown_multi, radio, checkbox
+  options   String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  values    CustomFieldValue[]
+}
+
+// One value per (field, lead). `value` is JSON-encoded so it can hold a string,
+// number, boolean, or string[] depending on the field's type.
+model CustomFieldValue {
+  id      String                 @id @default(uuid())
+  fieldId String
+  field   CustomFieldDefinition  @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  leadId  String
+  lead    Lead                   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  value   String?
+
+  @@unique([fieldId, leadId])
+}
+
+// User-configurable pipeline columns (Kanban stages). Deleting a stage that still
+// has leads in it is blocked by the API unless the caller reassigns them first.
+model PipelineStage {
+  id        String   @id @default(uuid())
+  name      String
+  order     Int      @default(0)
+  color     String   @default("#fc6203")
+  createdAt DateTime @default(now())
+
+  leads     Lead[]
 }
 
 model LeadActivity {
@@ -76,7 +131,11 @@ model Client {
   phone             String?
   billingInformation String?
   services          String?  // JSON string or comma separated
+  currency          String   @default("USD") // USD or INR
+  billingType       String   @default("Retainer") // Retainer or Hourly
   retainerValue     Float    @default(0)
+  hourlyRate        Float?
+  weeklyHourLimit   Float?
   renewalDate       DateTime?
   assignedPmId      String?
   status            String   @default("Active")
@@ -124,10 +183,12 @@ model Task {
   id             String    @id @default(uuid())
   title          String
   description    String?
-  projectId      String
-  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId      String?
+  project        Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assigneeId     String?
   assignee       User?     @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdById    String?
+  createdBy      User?     @relation("TaskCreator", fields: [createdById], references: [id])
   dueDate        DateTime?
   priority       String    @default("Medium") // Low, Medium, High, Urgent
   status         String    @default("To Do") // To Do, In Progress, Review, Completed
@@ -138,6 +199,29 @@ model Task {
   updatedAt      DateTime  @updatedAt
 
   timeLogs       TimeLog[]
+  comments       Comment[]
+  activeTimers   ActiveTimer[]
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  text      String
+  createdAt DateTime @default(now())
+}
+
+// One running stopwatch per user (ClickUp-style start/stop timer). Deleted on stop,
+// at which point a TimeLog row is written with the computed duration.
+model ActiveTimer {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  startedAt DateTime @default(now())
 }
 
 model TimeLog {
@@ -186,6 +270,7 @@ model Invoice {
   invoiceNumber String    @unique
   clientId      String
   client        Client    @relation(fields: [clientId], references: [id])
+  currency      String    @default("USD") // USD or INR
   amount        Float
   tax           Float     @default(0)
   discount      Float     @default(0)

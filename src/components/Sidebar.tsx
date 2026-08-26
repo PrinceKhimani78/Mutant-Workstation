@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
+  Contact,
   Briefcase,
   FolderKanban,
   CheckSquare,
@@ -17,7 +18,7 @@ import {
   Bot,
   LogOut,
   Sparkles,
-  ChevronRight,
+  X,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,21 +29,27 @@ interface SidebarProps {
     avatarUrl?: string | null;
   } | null;
   onOpenAI: () => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export function Sidebar({ user, onOpenAI }: SidebarProps) {
+export function Sidebar({ user, onOpenAI, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const isOwner = user?.role === 'Owner';
 
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'CRM & Leads', href: '/crm', icon: Users },
+    { name: 'Contacts', href: '/contacts', icon: Contact },
     { name: 'Clients', href: '/clients', icon: Briefcase },
     { name: 'Projects', href: '/projects', icon: FolderKanban },
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
     { name: 'Employees', href: '/employees', icon: UserCheck },
     { name: 'Knowledge Base', href: '/knowledge', icon: BookOpen },
-    { name: 'Finance & Invoices', href: '/finance', icon: DollarSign },
+    // Revenue lives on Finance & Invoices — owner-only.
+    ...(isOwner ? [{ name: 'Finance & Invoices', href: '/finance', icon: DollarSign }] : []),
     { name: 'Reports', href: '/reports', icon: BarChart3 },
   ];
 
@@ -53,96 +60,108 @@ export function Sidebar({ user, onOpenAI }: SidebarProps) {
   };
 
   return (
-    <aside className="w-64 h-screen fixed left-0 top-0 bg-[#0b0f17] border-r border-[#1e293b] flex flex-col justify-between z-40 select-none">
-      {/* Brand Header */}
-      <div>
-        <div className="p-5 flex items-center justify-between border-b border-[#1e293b]/60">
-          <Link href="/dashboard" className="flex items-center gap-3 group">
-            <div className="relative w-9 h-9 rounded-xl overflow-hidden border border-[#fc6203]/40 shadow-[0_0_15px_rgba(252,98,3,0.3)] group-hover:scale-105 transition-transform bg-[#131b2e] flex items-center justify-center">
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      <aside
+        className={`w-64 h-screen fixed left-0 top-0 bg-white border-r border-[var(--border)] flex flex-col justify-between z-50 select-none
+          transition-transform duration-200 ease-out
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+      >
+        <div className="min-h-0 overflow-y-auto">
+          {/* Brand Header */}
+          <div className="p-4 flex items-center justify-between border-b border-[var(--border)]">
+            <Link href="/dashboard" className="flex items-center gap-2 group min-w-0" onClick={onClose}>
               <Image
                 src="/logo.png"
-                alt="Mutant Logo"
-                width={36}
-                height={36}
-                className="object-contain p-1"
+                alt="Mutant Technologies"
+                width={140}
+                height={23}
+                className="object-contain shrink-0"
                 priority
               />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-base tracking-tight text-white">MUTANT</span>
-                <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-[#fc6203]/20 text-[#fc6203] border border-[#fc6203]/30">OS</span>
-              </div>
-              <p className="text-[10px] text-[#94a3b8] tracking-widest font-mono uppercase">Workstation</p>
-            </div>
-          </Link>
-        </div>
-
-        {/* AI Quick Button */}
-        <div className="px-3 pt-4 pb-2">
-          <button
-            onClick={onOpenAI}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl glass-card bg-gradient-to-r from-[#fc6203]/10 to-transparent border border-[#fc6203]/30 text-[#fc6203] hover:text-white hover:border-[#fc6203] transition-all group"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="p-1 rounded-md bg-[#fc6203] text-white">
-                <Bot className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold tracking-wide">AI Assistant</span>
-            </div>
-            <Sparkles className="w-3.5 h-3.5 text-[#fc6203] group-hover:rotate-12 transition-transform" />
-          </button>
-        </div>
-
-        {/* Navigation Links */}
-        <nav className="px-3 py-2 space-y-1">
-          <p className="px-3 py-1 text-[10px] font-semibold text-[#64748b] tracking-wider uppercase">Menu</p>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                  isActive
-                    ? 'bg-[#fc6203] text-white font-semibold shadow-[0_4px_20px_rgba(252,98,3,0.35)]'
-                    : 'text-[#94a3b8] hover:text-white hover:bg-[#131b2e]'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-[#64748b]'}`} />
-                  <span>{item.name}</span>
-                </div>
-                {isActive && <ChevronRight className="w-3.5 h-3.5 text-white/80" />}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* User Footer */}
-      <div className="p-3 border-t border-[#1e293b]">
-        <div className="flex items-center justify-between p-2 rounded-xl bg-[#131b2e]/70 border border-[#1e293b]">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-[#fc6203]/20 border border-[#fc6203]/40 flex items-center justify-center text-[#fc6203] font-bold text-xs shrink-0">
-              {user?.name ? user.name.slice(0, 2).toUpperCase() : 'MT'}
-            </div>
-            <div className="truncate">
-              <p className="text-xs font-bold text-white truncate">{user?.name || 'Prince Khimani'}</p>
-              <p className="text-[10px] text-[#fc6203] font-mono font-medium truncate">{user?.role || 'Owner'}</p>
-            </div>
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--primary-soft)] text-[var(--primary)] shrink-0">
+                OS
+              </span>
+            </Link>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] lg:hidden"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            title="Sign Out"
-            className="p-1.5 rounded-lg text-[#64748b] hover:text-red-400 hover:bg-red-500/10 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+
+          {/* AI Quick Button */}
+          <div className="px-3 pt-3 pb-1">
+            <button
+              onClick={onOpenAI}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-[var(--border)] text-[var(--foreground)] hover:border-[var(--primary)] hover:bg-[var(--primary-soft)] transition-colors group"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-1 rounded-md bg-[var(--primary)] text-white">
+                  <Bot className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-semibold">AI Assistant</span>
+              </div>
+              <Sparkles className="w-3.5 h-3.5 text-[var(--primary)]" />
+            </button>
+          </div>
+
+          {/* Navigation Links */}
+          <nav className="px-3 py-2 space-y-0.5">
+            <p className="px-3 py-1.5 text-[11px] font-semibold text-[var(--muted-foreground)] uppercase tracking-wide">Menu</p>
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={onClose}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+                    isActive
+                      ? 'bg-[var(--primary-soft)] text-[var(--primary)]'
+                      : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface-muted)]'
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
         </div>
-      </div>
-    </aside>
+
+        {/* User Footer */}
+        <div className="p-3 border-t border-[var(--border)]">
+          <div className="flex items-center justify-between p-2 rounded-xl bg-[var(--surface-muted)]">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <div className="w-8 h-8 rounded-lg bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)] font-bold text-xs shrink-0">
+                {user?.name ? user.name.slice(0, 2).toUpperCase() : 'MT'}
+              </div>
+              <div className="truncate">
+                <p className="text-xs font-semibold text-[var(--foreground)] truncate">{user?.name || 'Prince Khimani'}</p>
+                <p className="text-[11px] text-[var(--muted-foreground)] truncate">{user?.role || 'Owner'}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              title="Sign Out"
+              className="p-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)] transition-colors shrink-0"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }

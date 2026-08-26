@@ -12,6 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [commandOpen, setCommandOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -25,19 +26,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0b0f17] text-white flex">
-      {/* Sidebar */}
-      <Sidebar user={currentUser} onOpenAI={() => setAiOpen(true)} />
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex">
+      <Sidebar user={currentUser} onOpenAI={() => setAiOpen(true)} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content Area */}
-      <div className="flex-1 ml-64 flex flex-col min-w-0">
+      <div className="flex-1 lg:ml-64 flex flex-col min-w-0">
         <Header
-          title="Mutant Workstation OS"
+          title="Mutant Workstation"
           onOpenCommand={() => setCommandOpen(true)}
           onOpenQuickCreate={() => setQuickCreateOpen(true)}
+          onOpenSidebar={() => setSidebarOpen(true)}
         />
 
-        <main className="p-6 flex-1">{children}</main>
+        <main className="p-4 sm:p-6 flex-1 w-full max-w-full overflow-x-hidden">{children}</main>
       </div>
 
       {/* Overlays */}

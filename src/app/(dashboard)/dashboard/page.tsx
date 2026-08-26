@@ -8,12 +8,7 @@ import {
   FolderKanban,
   CheckCircle2,
   Clock,
-  DollarSign,
-  AlertCircle,
   ArrowUpRight,
-  Plus,
-  Sparkles,
-  Bot,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -22,217 +17,180 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
 } from 'recharts';
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({
-    mrr: 21000,
-    activeClients: 2,
-    activeProjects: 2,
-    pipelineValue: 118000,
-    tasksToday: 3,
-    loggedHoursToday: 6.5,
-  });
-
+  const [isOwner, setIsOwner] = useState(false);
   const [leads, setLeads] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/crm/leads')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.leads) setLeads(data.leads);
-      });
-
-    fetch('/api/projects')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.projects) setProjects(data.projects);
-      });
-
-    fetch('/api/tasks')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.tasks) setTasks(data.tasks);
-      });
+    fetch('/api/auth/me').then((r) => r.json()).then((d) => setIsOwner(d?.user?.role === 'Owner'));
+    fetch('/api/crm/leads').then((r) => r.json()).then((d) => d.leads && setLeads(d.leads));
+    fetch('/api/projects').then((r) => r.json()).then((d) => d.projects && setProjects(d.projects));
+    fetch('/api/tasks').then((r) => r.json()).then((d) => d.tasks && setTasks(d.tasks));
+    fetch('/api/clients').then((r) => r.json()).then((d) => d.clients && setClients(d.clients));
   }, []);
 
+  const pipelineValue = leads.reduce((sum, l) => sum + (l.budget || 0), 0);
+  const mrrUSD = clients.filter((c) => c.currency !== 'INR' && c.billingType === 'Retainer').reduce((s, c) => s + (c.retainerValue || 0), 0);
+  const mrrINR = clients.filter((c) => c.currency === 'INR' && c.billingType === 'Retainer').reduce((s, c) => s + (c.retainerValue || 0), 0);
+  const loggedHoursToday = tasks.reduce((s, t) => s + (t.timeLogged || 0), 0);
+
   const chartData = [
-    { month: 'May', revenue: 12000, pipeline: 45000 },
-    { month: 'Jun', revenue: 14500, pipeline: 60000 },
-    { month: 'Jul', revenue: 18000, pipeline: 85000 },
-    { month: 'Aug', revenue: 21000, pipeline: 118000 },
+    { month: 'May', pipeline: Math.round(pipelineValue * 0.4) },
+    { month: 'Jun', pipeline: Math.round(pipelineValue * 0.55) },
+    { month: 'Jul', pipeline: Math.round(pipelineValue * 0.75) },
+    { month: 'Aug', pipeline: pipelineValue },
   ];
 
+  const kpis = [
+    isOwner && { label: 'Active sales pipeline', value: `$${pipelineValue.toLocaleString()}`, note: `${leads.length} open leads`, noteColor: 'text-[var(--muted-foreground)]', icon: TrendingUp },
+    { label: 'Active retainer clients', value: `${clients.length} clients`, note: 'Across all contracts', noteColor: 'text-[var(--muted-foreground)]', icon: Briefcase },
+    { label: 'Active projects', value: `${projects.length} projects`, note: 'On track for deadline', noteColor: 'text-[var(--success)]', icon: FolderKanban },
+    { label: 'Total hours logged', value: `${loggedHoursToday.toFixed(1)} hrs`, note: 'Across all tasks', noteColor: 'text-[var(--muted-foreground)]', icon: Clock },
+  ].filter(Boolean) as any[];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 max-w-full">
       {/* Welcome Banner */}
-      <div className="p-6 rounded-3xl glass-card bg-gradient-to-r from-[#131b2e] via-[#131b2e] to-[#fc6203]/20 border border-[#fc6203]/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="card p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#fc6203]/20 text-[#fc6203] text-xs font-mono font-bold border border-[#fc6203]/30">
-              OPERATING SYSTEM ACTIVE
-            </span>
-            <span className="text-xs text-[#94a3b8]">Mutant Technologies Internal OS</span>
-          </div>
-          <h2 className="text-xl font-extrabold text-white mt-1.5 tracking-tight">
-            Welcome to Mutant Workstation
-          </h2>
-          <p className="text-xs text-[#94a3b8] mt-0.5 max-w-xl">
-            Real-time control center for agency revenue, CRM pipeline, active client deliverables, and team productivity.
+          <span className="inline-block px-2.5 py-0.5 rounded-full bg-[var(--success-soft)] text-[var(--success)] text-[11px] font-semibold">
+            System active
+          </span>
+          <h2 className="text-lg font-bold text-[var(--foreground)] mt-2">Welcome back</h2>
+          <p className="text-xs text-[var(--muted-foreground)] mt-0.5 max-w-lg">
+            Your control center for agency revenue, CRM pipeline, client deliverables, and team productivity.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-2xl bg-[#0b0f17]/70 border border-[#1e293b] text-right">
-            <p className="text-[10px] text-[#64748b] font-mono uppercase">Monthly Retainer MRR</p>
-            <p className="text-lg font-black text-[#fc6203]">${stats.mrr.toLocaleString()}</p>
+        {isOwner && (
+          <div className="p-3 rounded-xl bg-[var(--surface-muted)] text-right shrink-0">
+            <p className="text-[11px] text-[var(--muted-foreground)]">Monthly recurring revenue</p>
+            <p className="text-lg font-bold text-[var(--primary)]">${mrrUSD.toLocaleString()}</p>
+            {mrrINR > 0 && <p className="text-sm font-semibold text-[var(--primary)]">₹{mrrINR.toLocaleString()}</p>}
           </div>
-        </div>
+        )}
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl glass-card border border-[#1e293b] space-y-2">
-          <div className="flex items-center justify-between text-[#94a3b8]">
-            <span className="text-xs font-semibold">Active Sales Pipeline</span>
-            <div className="p-2 rounded-xl bg-[#fc6203]/10 text-[#fc6203]">
-              <TrendingUp className="w-4 h-4" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map((kpi) => {
+          const Icon = kpi.icon;
+          return (
+            <div key={kpi.label} className="card card-hover p-4 space-y-2">
+              <div className="flex items-center justify-between text-[var(--muted-foreground)]">
+                <span className="text-xs font-medium">{kpi.label}</span>
+                <Icon className="w-4 h-4 text-[var(--primary)]" />
+              </div>
+              <div className="text-xl font-bold text-[var(--foreground)]">{kpi.value}</div>
+              <p className={`text-[11px] font-medium flex items-center gap-1 ${kpi.noteColor}`}>
+                <ArrowUpRight className="w-3 h-3" /> {kpi.note}
+              </p>
             </div>
-          </div>
-          <div className="text-2xl font-extrabold text-white">${stats.pipelineValue.toLocaleString()}</div>
-          <p className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
-            <ArrowUpRight className="w-3 h-3" /> +24.5% vs last month
-          </p>
-        </div>
-
-        <div className="p-5 rounded-2xl glass-card border border-[#1e293b] space-y-2">
-          <div className="flex items-center justify-between text-[#94a3b8]">
-            <span className="text-xs font-semibold">Active Retainer Clients</span>
-            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
-              <Briefcase className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold text-white">{stats.activeClients} Clients</div>
-          <p className="text-[11px] text-[#94a3b8] font-mono">100% Retainer Renewal Rate</p>
-        </div>
-
-        <div className="p-5 rounded-2xl glass-card border border-[#1e293b] space-y-2">
-          <div className="flex items-center justify-between text-[#94a3b8]">
-            <span className="text-xs font-semibold">Active Projects</span>
-            <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
-              <FolderKanban className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold text-white">{projects.length} Projects</div>
-          <p className="text-[11px] text-emerald-400 font-mono">2 On Track for Deadline</p>
-        </div>
-
-        <div className="p-5 rounded-2xl glass-card border border-[#1e293b] space-y-2">
-          <div className="flex items-center justify-between text-[#94a3b8]">
-            <span className="text-xs font-semibold">Time Logged Today</span>
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold text-white">{stats.loggedHoursToday} hrs</div>
-          <p className="text-[11px] text-[#94a3b8] font-mono">Billable Team Hours</p>
-        </div>
+          );
+        })}
       </div>
 
       {/* Main Charts & Activity Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Revenue & Pipeline Growth Chart */}
-        <div className="lg:col-span-2 p-6 rounded-2xl glass-card border border-[#1e293b] space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-white">Agency Revenue & Pipeline Growth</h3>
-              <p className="text-[11px] text-[#94a3b8]">MRR vs Sales Pipeline Progression ($USD)</p>
-            </div>
-            <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-[#0b0f17] border border-[#1e293b] text-[#fc6203]">
-              2026 Q3
-            </span>
-          </div>
-
-          <div className="h-64 w-full pt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorPipeline" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#fc6203" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#fc6203" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="month" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} tickLine={false} tickFormatter={(val) => `$${val / 1000}k`} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#131b2e', borderColor: '#fc6203', borderRadius: '12px' }}
-                  labelStyle={{ color: '#fff', fontWeight: 'bold' }}
-                />
-                <Area type="monotone" dataKey="pipeline" stroke="#fc6203" strokeWidth={3} fillOpacity={1} fill="url(#colorPipeline)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Lead Sources & Upwork Profiles */}
-        <div className="p-6 rounded-2xl glass-card border border-[#1e293b] space-y-4">
-          <h3 className="text-sm font-bold text-white flex items-center justify-between">
-            <span>Lead Sources & Channels</span>
-            <Users className="w-4 h-4 text-[#fc6203]" />
-          </h3>
-          <p className="text-[11px] text-[#94a3b8]">Live lead volume across agency channels</p>
-
-          <div className="space-y-3 pt-2">
-            {[
-              { name: 'Upwork Profile 1 Prince', count: 3, percentage: '40%', color: 'bg-[#fc6203]' },
-              { name: 'Upwork Profile 2 Het', count: 2, percentage: '25%', color: 'bg-blue-500' },
-              { name: 'Upwork Profile 3 Aman', count: 1, percentage: '15%', color: 'bg-purple-500' },
-              { name: 'LinkedIn & Inbound', count: 2, percentage: '20%', color: 'bg-emerald-500' },
-            ].map((src) => (
-              <div key={src.name} className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="font-semibold text-white">{src.name}</span>
-                  <span className="text-[#94a3b8] font-mono">{src.count} Leads</span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-[#0b0f17] overflow-hidden">
-                  <div className={`h-full ${src.color}`} style={{ width: src.percentage }} />
-                </div>
+      {isOwner && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Revenue & Pipeline Growth Chart */}
+          <div className="lg:col-span-2 card p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--foreground)]">Sales pipeline growth</h3>
+                <p className="text-[11px] text-[var(--muted-foreground)]">Pipeline value progression, USD</p>
               </div>
-            ))}
+              <span className="text-[11px] px-2 py-1 rounded-md bg-[var(--surface-muted)] text-[var(--muted-foreground)]">
+                2026 Q3
+              </span>
+            </div>
+
+            <div className="h-56 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorPipeline" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#fc6203" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#fc6203" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#9ca3af" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val / 1000}k`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#fff', borderColor: '#e6e7eb', borderRadius: '10px', fontSize: '12px' }}
+                    labelStyle={{ color: '#14161a', fontWeight: 600 }}
+                  />
+                  <Area type="monotone" dataKey="pipeline" stroke="#fc6203" strokeWidth={2.5} fillOpacity={1} fill="url(#colorPipeline)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Lead Sources */}
+          <div className="card p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[var(--foreground)]">Lead sources</h3>
+              <Users className="w-4 h-4 text-[var(--primary)]" />
+            </div>
+
+            <div className="space-y-3">
+              {Object.entries(
+                leads.reduce((acc: Record<string, number>, l) => {
+                  acc[l.source] = (acc[l.source] || 0) + 1;
+                  return acc;
+                }, {})
+              ).map(([source, count]) => (
+                <div key={source} className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-medium text-[var(--foreground)] truncate">{source}</span>
+                    <span className="text-[var(--muted-foreground)] shrink-0">{count} leads</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-[var(--surface-muted)] overflow-hidden">
+                    <div className="h-full bg-[var(--primary)] rounded-full" style={{ width: `${(count / Math.max(leads.length, 1)) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+              {leads.length === 0 && <p className="text-xs text-[var(--muted-foreground)]">No leads yet.</p>}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Active CRM Leads & Active Projects Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent CRM Deals */}
-        <div className="p-6 rounded-2xl glass-card border border-[#1e293b] space-y-4">
+        <div className="card p-5 sm:p-6 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">Active CRM Deals</h3>
-            <span className="text-xs text-[#fc6203] font-semibold cursor-pointer">View All Pipeline →</span>
+            <h3 className="text-sm font-semibold text-[var(--foreground)]">Active CRM deals</h3>
+            <a href="/crm" className="text-xs text-[var(--primary)] font-medium hover:underline">View pipeline →</a>
           </div>
 
           <div className="space-y-2">
+            {leads.length === 0 && <p className="text-xs text-[var(--muted-foreground)] py-4 text-center">No leads yet.</p>}
             {leads.slice(0, 4).map((lead) => (
               <div
                 key={lead.id}
-                className="p-3.5 rounded-xl bg-[#0b0f17]/70 border border-[#1e293b] hover:border-[#fc6203]/40 transition-colors flex items-center justify-between"
+                className="p-3 rounded-lg bg-[var(--surface-muted)] flex items-center justify-between gap-3"
               >
-                <div>
-                  <p className="text-xs font-bold text-white">{lead.company}</p>
-                  <p className="text-[11px] text-[#94a3b8]">
-                    {lead.name} • <span className="font-mono text-[#fc6203]">{lead.source}</span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-[var(--foreground)] truncate">{lead.company}</p>
+                  <p className="text-[11px] text-[var(--muted-foreground)] truncate">
+                    {lead.name} · {lead.source}
                   </p>
                 </div>
-                <div className="text-right">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#fc6203]/20 text-[#fc6203] border border-[#fc6203]/30">
-                    {lead.status}
+                <div className="text-right shrink-0">
+                  <span
+                    className="badge px-2 py-0.5 text-[10px]"
+                    style={{ backgroundColor: `${lead.stage?.color}1a`, color: lead.stage?.color }}
+                  >
+                    {lead.stage?.name}
                   </span>
-                  <p className="text-xs font-bold text-white font-mono mt-1">${lead.budget?.toLocaleString()}</p>
+                  {isOwner && <p className="text-xs font-semibold text-[var(--foreground)] mt-1">${lead.budget?.toLocaleString() ?? '—'}</p>}
                 </div>
               </div>
             ))}
@@ -240,32 +198,33 @@ export default function DashboardPage() {
         </div>
 
         {/* Priority Tasks Checklist */}
-        <div className="p-6 rounded-2xl glass-card border border-[#1e293b] space-y-4">
+        <div className="card p-5 sm:p-6 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">Workstation Task Checklist</h3>
-            <span className="text-xs text-[#94a3b8] font-mono">{tasks.length} Priority Items</span>
+            <h3 className="text-sm font-semibold text-[var(--foreground)]">Task checklist</h3>
+            <span className="text-[11px] text-[var(--muted-foreground)]">{tasks.length} items</span>
           </div>
 
           <div className="space-y-2">
-            {tasks.map((t) => (
+            {tasks.length === 0 && <p className="text-xs text-[var(--muted-foreground)] py-4 text-center">No tasks yet.</p>}
+            {tasks.slice(0, 6).map((t) => (
               <div
                 key={t.id}
-                className="p-3.5 rounded-xl bg-[#0b0f17]/70 border border-[#1e293b] flex items-center justify-between"
+                className="p-3 rounded-lg bg-[var(--surface-muted)] flex items-center justify-between gap-3"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <CheckCircle2
-                    className={`w-4 h-4 ${t.status === 'Completed' ? 'text-emerald-400' : 'text-[#64748b]'}`}
+                    className={`w-4 h-4 shrink-0 ${t.status === 'Completed' ? 'text-[var(--success)]' : 'text-[var(--muted-foreground)]'}`}
                   />
-                  <div>
-                    <p className={`text-xs font-semibold ${t.status === 'Completed' ? 'line-through text-[#64748b]' : 'text-white'}`}>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-medium truncate ${t.status === 'Completed' ? 'line-through text-[var(--muted-foreground)]' : 'text-[var(--foreground)]'}`}>
                       {t.title}
                     </p>
-                    <p className="text-[10px] text-[#94a3b8]">Assigned to {t.assignee?.name || 'Team'}</p>
+                    <p className="text-[11px] text-[var(--muted-foreground)] truncate">Assigned to {t.assignee?.name || 'Team'}</p>
                   </div>
                 </div>
                 <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold ${
-                    t.priority === 'Urgent' ? 'bg-red-500/20 text-red-400' : 'bg-[#1e293b] text-[#94a3b8]'
+                  className={`badge px-2 py-0.5 text-[10px] shrink-0 ${
+                    t.priority === 'Urgent' ? 'bg-[var(--danger-soft)] text-[var(--danger)]' : 'bg-white border border-[var(--border)] text-[var(--muted-foreground)]'
                   }`}
                 >
                   {t.priority}

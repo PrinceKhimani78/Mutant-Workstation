@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Users, Briefcase, FolderKanban, CheckSquare, DollarSign, Plus } from 'lucide-react';
+import { X, Users, Briefcase, FolderKanban, CheckSquare, Plus } from 'lucide-react';
 
 interface QuickCreateModalProps {
   isOpen: boolean;
@@ -9,11 +9,13 @@ interface QuickCreateModalProps {
   onRefresh?: () => void;
 }
 
+const inputClass = 'input-minimal w-full px-3 py-2 rounded-lg text-xs';
+const labelClass = 'block text-[11px] font-medium text-[var(--muted-foreground)] mb-1';
+
 export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModalProps) {
   const [tab, setTab] = useState<'lead' | 'client' | 'project' | 'task'>('lead');
   const [loading, setLoading] = useState(false);
 
-  // Form states
   const [leadData, setLeadData] = useState({
     name: '',
     company: '',
@@ -28,7 +30,11 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
     contactPerson: '',
     email: '',
     phone: '',
+    currency: 'USD',
+    billingType: 'Retainer',
     retainerValue: '',
+    hourlyRate: '',
+    weeklyHourLimit: '',
   });
 
   const [projectData, setProjectData] = useState({
@@ -87,20 +93,22 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-[#131b2e] border border-[#1e293b] shadow-2xl p-6 relative">
-        {/* Close Button */}
-        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-lg text-[#64748b] hover:text-white hover:bg-[#1e293b]">
+    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white border border-[var(--border)] shadow-xl p-5 sm:p-6 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-lg text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]">
           <X className="w-4 h-4" />
         </button>
 
-        <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-          <Plus className="w-4 h-4 text-[#fc6203]" />
-          <span>Quick Create Workstation Record</span>
+        <h3 className="text-sm font-semibold text-[var(--foreground)] mb-4 flex items-center gap-2">
+          <Plus className="w-4 h-4 text-[var(--primary)]" />
+          <span>Quick create</span>
         </h3>
 
         {/* Tab Selection */}
-        <div className="flex gap-2 p-1 rounded-xl bg-[#0b0f17] border border-[#1e293b] mb-6">
+        <div className="flex gap-1 p-1 rounded-lg bg-[var(--surface-muted)] mb-6">
           {[
             { id: 'lead', label: 'Lead', icon: Users },
             { id: 'client', label: 'Client', icon: Briefcase },
@@ -114,8 +122,8 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id as any)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-                  active ? 'bg-[#fc6203] text-white shadow-md' : 'text-[#94a3b8] hover:text-white'
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  active ? 'bg-white text-[var(--foreground)] shadow-sm' : 'text-[var(--muted-foreground)]'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -130,49 +138,49 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
           {tab === 'lead' && (
             <>
               <div>
-                <label className="block text-[11px] font-medium text-[#94a3b8] mb-1">Contact Name *</label>
+                <label className={labelClass}>Contact name *</label>
                 <input
                   required
                   type="text"
                   value={leadData.name}
                   onChange={(e) => setLeadData({ ...leadData, name: e.target.value })}
                   placeholder="e.g. Michael Scott"
-                  className="w-full px-3 py-2 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-xs text-white focus:outline-none focus:border-[#fc6203]"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-[#94a3b8] mb-1">Company Name *</label>
+                <label className={labelClass}>Company name *</label>
                 <input
                   required
                   type="text"
                   value={leadData.company}
                   onChange={(e) => setLeadData({ ...leadData, company: e.target.value })}
                   placeholder="e.g. Dunder Mifflin Tech"
-                  className="w-full px-3 py-2 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-xs text-white focus:outline-none focus:border-[#fc6203]"
+                  className={inputClass}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-medium text-[#94a3b8] mb-1">Email *</label>
+                  <label className={labelClass}>Email *</label>
                   <input
                     required
                     type="email"
                     value={leadData.email}
                     onChange={(e) => setLeadData({ ...leadData, email: e.target.value })}
                     placeholder="michael@dundermifflin.com"
-                    className="w-full px-3 py-2 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-xs text-white focus:outline-none focus:border-[#fc6203]"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-[#94a3b8] mb-1">Lead Source *</label>
+                  <label className={labelClass}>Lead source *</label>
                   <select
                     value={leadData.source}
                     onChange={(e) => setLeadData({ ...leadData, source: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-xs text-white focus:outline-none focus:border-[#fc6203]"
+                    className={inputClass}
                   >
-                    <option value="Upwork Profile 1 Prince">Upwork Profile 1 Prince</option>
-                    <option value="Upwork Profile 2 Het">Upwork Profile 2 Het</option>
-                    <option value="Upwork Profile 3 Aman">Upwork Profile 3 Aman</option>
+                    <option value="Upwork Profile 1 Prince">Upwork · Prince</option>
+                    <option value="Upwork Profile 2 Het">Upwork · Het</option>
+                    <option value="Upwork Profile 3 Aman">Upwork · Aman</option>
                     <option value="LinkedIn">LinkedIn</option>
                     <option value="Cold Email">Cold Email</option>
                     <option value="Website">Website</option>
@@ -181,13 +189,13 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-[#94a3b8] mb-1">Estimated Budget ($)</label>
+                <label className={labelClass}>Estimated budget ($)</label>
                 <input
                   type="number"
                   value={leadData.budget}
                   onChange={(e) => setLeadData({ ...leadData, budget: e.target.value })}
                   placeholder="25000"
-                  className="w-full px-3 py-2 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-xs text-white focus:outline-none focus:border-[#fc6203]"
+                  className={inputClass}
                 />
               </div>
             </>
@@ -196,71 +204,120 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
           {tab === 'client' && (
             <>
               <div>
-                <label className="block text-[11px] font-medium text-[#94a3b8] mb-1">Company Name *</label>
+                <label className={labelClass}>Company name *</label>
                 <input
                   required
                   type="text"
                   value={clientData.company}
                   onChange={(e) => setClientData({ ...clientData, company: e.target.value })}
                   placeholder="Acme Global Inc"
-                  className="w-full px-3 py-2 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-xs text-white focus:outline-none focus:border-[#fc6203]"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-[#94a3b8] mb-1">Primary Contact Person</label>
+                <label className={labelClass}>Primary contact person</label>
                 <input
                   type="text"
                   value={clientData.contactPerson}
                   onChange={(e) => setClientData({ ...clientData, contactPerson: e.target.value })}
                   placeholder="Sarah Jenkins"
-                  className="w-full px-3 py-2 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-xs text-white focus:outline-none focus:border-[#fc6203]"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-[#94a3b8] mb-1">Billing Email *</label>
+                <label className={labelClass}>Billing email *</label>
                 <input
                   required
                   type="email"
                   value={clientData.email}
                   onChange={(e) => setClientData({ ...clientData, email: e.target.value })}
                   placeholder="billing@acmeglobal.com"
-                  className="w-full px-3 py-2 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-xs text-white focus:outline-none focus:border-[#fc6203]"
+                  className={inputClass}
                 />
               </div>
-              <div>
-                <label className="block text-[11px] font-medium text-[#94a3b8] mb-1">Monthly Retainer Value ($)</label>
-                <input
-                  type="number"
-                  value={clientData.retainerValue}
-                  onChange={(e) => setClientData({ ...clientData, retainerValue: e.target.value })}
-                  placeholder="12500"
-                  className="w-full px-3 py-2 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-xs text-white focus:outline-none focus:border-[#fc6203]"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelClass}>Currency</label>
+                  <select
+                    value={clientData.currency}
+                    onChange={(e) => setClientData({ ...clientData, currency: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="USD">USD ($)</option>
+                    <option value="INR">INR (₹)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Billing type</label>
+                  <select
+                    value={clientData.billingType}
+                    onChange={(e) => setClientData({ ...clientData, billingType: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="Retainer">Retainer</option>
+                    <option value="Hourly">Hourly (Upwork)</option>
+                  </select>
+                </div>
               </div>
+              {clientData.billingType === 'Retainer' ? (
+                <div>
+                  <label className={labelClass}>Monthly retainer value</label>
+                  <input
+                    type="number"
+                    value={clientData.retainerValue}
+                    onChange={(e) => setClientData({ ...clientData, retainerValue: e.target.value })}
+                    placeholder="12500"
+                    className={inputClass}
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Hourly rate</label>
+                    <input
+                      type="number"
+                      value={clientData.hourlyRate}
+                      onChange={(e) => setClientData({ ...clientData, hourlyRate: e.target.value })}
+                      placeholder="45"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Weekly hour cap</label>
+                    <input
+                      type="number"
+                      value={clientData.weeklyHourLimit}
+                      onChange={(e) => setClientData({ ...clientData, weeklyHourLimit: e.target.value })}
+                      placeholder="20"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              )}
             </>
           )}
 
           {tab === 'project' && (
             <>
               <div>
-                <label className="block text-[11px] font-medium text-[#94a3b8] mb-1">Project Name *</label>
+                <label className={labelClass}>Project name *</label>
                 <input
                   required
                   type="text"
                   value={projectData.name}
                   onChange={(e) => setProjectData({ ...projectData, name: e.target.value })}
-                  placeholder="Next.js Platform Redesign"
-                  className="w-full px-3 py-2 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-xs text-white focus:outline-none focus:border-[#fc6203]"
+                  placeholder="Next.js platform redesign"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-[#94a3b8] mb-1">Project Budget ($)</label>
+                <label className={labelClass}>Project budget ($)</label>
                 <input
                   type="number"
                   value={projectData.budget}
                   onChange={(e) => setProjectData({ ...projectData, budget: e.target.value })}
                   placeholder="15000"
-                  className="w-full px-3 py-2 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-xs text-white focus:outline-none focus:border-[#fc6203]"
+                  className={inputClass}
                 />
               </div>
             </>
@@ -269,33 +326,33 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
           {tab === 'task' && (
             <>
               <div>
-                <label className="block text-[11px] font-medium text-[#94a3b8] mb-1">Task Title *</label>
+                <label className={labelClass}>Task title *</label>
                 <input
                   required
                   type="text"
                   value={taskData.title}
                   onChange={(e) => setTaskData({ ...taskData, title: e.target.value })}
-                  placeholder="Build JWT Permission Middleware"
-                  className="w-full px-3 py-2 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-xs text-white focus:outline-none focus:border-[#fc6203]"
+                  placeholder="Build JWT permission middleware"
+                  className={inputClass}
                 />
               </div>
             </>
           )}
 
-          <div className="pt-4 flex items-center justify-end gap-3 border-t border-[#1e293b]">
+          <div className="pt-4 flex items-center justify-end gap-2 border-t border-[var(--border)]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-[#94a3b8] hover:text-white hover:bg-[#1e293b]"
+              className="px-4 py-2 rounded-lg text-xs font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 rounded-xl bg-[#fc6203] hover:bg-[#e05300] text-white text-xs font-semibold shadow-[0_4px_15px_rgba(252,98,3,0.3)] disabled:opacity-50"
+              className="btn-primary px-4 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Creating...' : `Create ${tab.toUpperCase()}`}
+              {loading ? 'Creating…' : `Create ${tab}`}
             </button>
           </div>
         </form>

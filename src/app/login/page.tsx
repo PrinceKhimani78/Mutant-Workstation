@@ -3,7 +3,14 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Shield, Sparkles, Key, ArrowRight, Lock } from 'lucide-react';
+import { Shield, ArrowRight } from 'lucide-react';
+
+const DEMO_ROLES = [
+  { email: 'prince@mutanttechnologies.com', name: 'Prince Khimani', role: 'Owner' },
+  { email: 'het@mutanttechnologies.com', name: 'Het Patel', role: 'Sales Manager' },
+  { email: 'aman@mutanttechnologies.com', name: 'Aman Sharma', role: 'Project Manager' },
+  { email: 'dev@mutanttechnologies.com', name: 'Senior Dev', role: 'Developer' },
+];
 
 export default function LoginPage() {
   const [email, setEmail] = useState('prince@mutanttechnologies.com');
@@ -44,52 +51,52 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f17] text-white flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Orbs */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-[#fc6203]/10 blur-[120px] pointer-events-none" />
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-[#fc6203]/15 blur-[140px] pointer-events-none" />
-
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
         {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#131b2e] border border-[#fc6203]/40 shadow-[0_0_30px_rgba(252,98,3,0.25)] mb-4">
-            <Image src="/logo.png" alt="Mutant Technologies" width={48} height={48} priority className="object-contain" />
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white flex items-center justify-center gap-2">
-            MUTANT <span className="text-[#fc6203]">WORKSTATION</span>
-          </h1>
-          <p className="text-xs text-[#94a3b8] mt-1 font-mono">Single Internal Operating System for Mutant Technologies</p>
+          <Image
+            src="/logo.png"
+            alt="Mutant Technologies"
+            width={220}
+            height={36}
+            priority
+            className="object-contain mx-auto mb-3"
+          />
+          <p className="text-xs text-[var(--muted-foreground)]">
+            <span className="font-semibold text-[var(--primary)]">Workstation</span> · Internal operating system
+          </p>
         </div>
 
-        {/* Login Form Glass Card */}
-        <div className="glass-panel p-8 rounded-3xl border border-[#1e293b] shadow-2xl relative">
+        {/* Login Form */}
+        <div className="card p-6 sm:p-7 shadow-sm">
           <form onSubmit={handleLogin} className="space-y-4">
             {error && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium">
+              <div className="p-3 rounded-lg bg-[var(--danger-soft)] text-[var(--danger)] text-xs font-medium">
                 {error}
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-[#cbd5e1] mb-1.5">Work Email</label>
+              <label className="block text-xs font-medium text-[var(--muted-foreground)] mb-1.5">Work email</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-sm text-white focus:outline-none focus:border-[#fc6203] transition-colors"
-                placeholder="prince@mutanttechnologies.com"
+                className="input-minimal w-full px-3.5 py-2.5 rounded-lg text-sm transition-colors"
+                placeholder="you@mutanttechnologies.com"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#cbd5e1] mb-1.5">Password</label>
+              <label className="block text-xs font-medium text-[var(--muted-foreground)] mb-1.5">Password</label>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-[#0b0f17] border border-[#1e293b] text-sm text-white focus:outline-none focus:border-[#fc6203] transition-colors"
+                className="input-minimal w-full px-3.5 py-2.5 rounded-lg text-sm transition-colors"
                 placeholder="••••••••••••"
               />
             </div>
@@ -97,59 +104,38 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-xl bg-[#fc6203] hover:bg-[#e05300] text-white text-sm font-bold shadow-[0_4px_25px_rgba(252,98,3,0.35)] transition-all flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-50"
+              className="btn-primary w-full py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-50"
             >
-              <span>{loading ? 'Authenticating...' : 'Sign In to Workstation'}</span>
+              <span>{loading ? 'Signing in…' : 'Sign in'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
-          {/* Quick Seed Login Shortcuts for instant evaluation */}
-          <div className="mt-8 pt-6 border-t border-[#1e293b]">
-            <p className="text-[11px] font-mono text-[#64748b] mb-3 uppercase tracking-wider flex items-center gap-1.5">
-              <Key className="w-3 h-3 text-[#fc6203]" /> Demo Role Shortcuts (Password: password123)
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setDemoRole('prince@mutanttechnologies.com')}
-                className="p-2 rounded-xl bg-[#0b0f17] hover:bg-[#1e293b] border border-[#1e293b] text-left text-xs transition-colors"
-              >
-                <p className="font-bold text-white">Prince Khimani</p>
-                <p className="text-[10px] text-[#fc6203] font-mono">Owner</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoRole('het@mutanttechnologies.com')}
-                className="p-2 rounded-xl bg-[#0b0f17] hover:bg-[#1e293b] border border-[#1e293b] text-left text-xs transition-colors"
-              >
-                <p className="font-bold text-white">Het Patel</p>
-                <p className="text-[10px] text-blue-400 font-mono">Sales Manager</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoRole('aman@mutanttechnologies.com')}
-                className="p-2 rounded-xl bg-[#0b0f17] hover:bg-[#1e293b] border border-[#1e293b] text-left text-xs transition-colors"
-              >
-                <p className="font-bold text-white">Aman Sharma</p>
-                <p className="text-[10px] text-emerald-400 font-mono">Project Manager</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoRole('dev@mutanttechnologies.com')}
-                className="p-2 rounded-xl bg-[#0b0f17] hover:bg-[#1e293b] border border-[#1e293b] text-left text-xs transition-colors"
-              >
-                <p className="font-bold text-white">Senior Dev</p>
-                <p className="text-[10px] text-purple-400 font-mono">Developer</p>
-              </button>
+          {/* Demo Role Shortcuts */}
+          <div className="mt-6 pt-5 border-t border-[var(--border)]">
+            <p className="text-[11px] text-[var(--muted-foreground)] mb-2.5">Demo accounts (password: password123)</p>
+            <div className="flex flex-wrap gap-1.5">
+              {DEMO_ROLES.map((r) => (
+                <button
+                  key={r.email}
+                  type="button"
+                  onClick={() => setDemoRole(r.email)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                    email === r.email
+                      ? 'border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]'
+                      : 'border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--border-strong)] hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  {r.name.split(' ')[0]} · {r.role}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Security Notice */}
-        <div className="mt-6 text-center text-[11px] text-[#64748b] flex items-center justify-center gap-1.5">
-          <Shield className="w-3.5 h-3.5 text-[#fc6203]" />
-          <span>Private Internal OS • Encrypted JWT Session & RBAC Enforcement</span>
+        <div className="mt-6 text-center text-[11px] text-[var(--muted-foreground)] flex items-center justify-center gap-1.5">
+          <Shield className="w-3.5 h-3.5" />
+          <span>Private internal OS · Encrypted session & role-based access</span>
         </div>
       </div>
     </div>

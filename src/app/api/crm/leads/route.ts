@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { isOwner, scrubLead } from '@/lib/rbac';
 
 export async function GET(request: Request) {
   try {
@@ -9,8 +10,9 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
-    const status = searchParams.get('status') || '';
+    const stageId = searchParams.get('stageId') || '';
     const source = searchParams.get('source') || '';
+    const ghosted = searchParams.get('ghosted') || '';
 
     const leads = await db.lead.findMany({
       where: {
@@ -22,11 +24,15 @@ export async function GET(request: Request) {
               { email: { contains: search } },
             ],
           } : {},
-          status ? { status } : {},
+          stageId ? { stageId } : {},
           source ? { source } : {},
+          ghosted ? { isGhosted: ghosted === 'true' } : {},
         ],
       },
       include: {
+        stage: true,
+        tags: true,
+        customFieldValues: { include: { field: true } },
         assignedSalesperson: {
           select: { id: true, name: true, avatarUrl: true, email: true },
         },
@@ -38,7 +44,8 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ success: true, leads });
+    const owner = isOwner(user);
+    return NextResponse.json({ success: true, leads: leads.map((l: any) => scrubLead(l, owner)) });
   } catch (error) {
     console.error('Leads fetch error:', error);
     return NextResponse.json({ error: 'Failed to fetch leads' }, { status: 500 });
@@ -51,10 +58,19 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { name, company, email, phone, whatsapp, website, linkedin, country, industry, source, budget, probability, proposalValue, notes, assignedSalespersonId } = body;
+    const { name, company, email, phone, whatsapp, website, linkedin, country, industry, source, budget, probability, proposalValue, notes, assignedSalespersonId, stageId } = body;
 
     if (!name || !company || !email || !source) {
       return NextResponse.json({ error: 'Name, company, email, and source are required' }, { status: 400 });
+    }
+
+    let resolvedStageId = stageId;
+    if (!resolvedStageId) {
+      const defaultStage = await db.pipelineStage.findFirst({ orderBy: { order: 'asc' } });
+      if (!defaultStage) {
+        return NextResponse.json({ error: 'No pipeline stages exist yet — create one first' }, { status: 400 });
+      }
+      resolvedStageId = defaultStage.id;
     }
 
     const lead = await db.lead.create({
@@ -74,8 +90,9 @@ export async function POST(request: Request) {
         proposalValue: proposalValue ? parseFloat(proposalValue) : null,
         notes,
         assignedSalespersonId: assignedSalespersonId || user.id,
-        status: 'New',
+        stageId: resolvedStageId,
       },
+      include: { stage: true },
     });
 
     // Create activity record
@@ -83,7 +100,7 @@ export async function POST(request: Request) {
       data: {
         leadId: lead.id,
         type: 'StatusChange',
-        title: 'Lead Created',
+        title: 'Lead created',
         description: `Lead created by ${user.name} via ${source}`,
         createdBy: user.name,
       },

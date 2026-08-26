@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { isOwner, scrubProject } from '@/lib/rbac';
 
 export async function GET() {
   try {
@@ -15,7 +16,8 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ success: true, projects });
+    const owner = isOwner(user);
+    return NextResponse.json({ success: true, projects: projects.map((p: any) => scrubProject(p, owner)) });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 });
   }
