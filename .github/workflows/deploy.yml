@@ -1,0 +1,43 @@
+name: Build and Deploy Mutant Workstation to cPanel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client & Database
+        run: |
+          npx prisma db push
+          npx prisma db seed
+
+      - name: Package cPanel Standalone Build
+        run: |
+          chmod +x package-cpanel.sh
+          ./package-cpanel.sh
+
+      - name: Deploy to cPanel via SFTP/FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.CPANEL_HOST }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          password: ${{ secrets.CPANEL_PASSWORD }}
+          server-dir: /workstation.mutanttechnologies.com/
+          local-dir: ./cpanel_build/
+          dangerous-clean-slate: false
