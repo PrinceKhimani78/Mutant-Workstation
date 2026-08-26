@@ -37,6 +37,4 @@ cd cpanel_build
 zip -r ../cpanel-mutant-workstation.zip . .next
 cd ..
 
-rm -rf cpanel_build
-
-echo "✅ SUCCESS! Created 'cpanel-mutant-workstation.zip' with complete .next build manifests."
+echo "✅ SUCCESS! Created 'cpanel-mutant-workstation.zip' and 'cpanel_build/' directory."
