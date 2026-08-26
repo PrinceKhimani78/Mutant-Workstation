@@ -35,7 +35,6 @@ jobs:
 
       - name: Deploy Zip Bundle via SCP / SSH
         uses: appleboy/scp-action@v0.1.7
-        continue-on-error: true
         with:
           host: ${{ secrets.CPANEL_HOST }}
           username: ${{ secrets.CPANEL_USERNAME }}
@@ -44,17 +43,42 @@ jobs:
           source: 'cpanel-mutant-workstation.zip'
           target: 'workstation.mutanttechnologies.com'
 
-      - name: Extract Zip & Instant Restart on cPanel
+      - name: Extract Zip, Clear Stuck Processes & Restart on cPanel
         uses: appleboy/ssh-action@v1.0.3
-        continue-on-error: true
         with:
           host: ${{ secrets.CPANEL_HOST }}
           username: ${{ secrets.CPANEL_USERNAME }}
           password: ${{ secrets.CPANEL_PASSWORD }}
           port: 22
           script: |
+            set -e
             cd ~/workstation.mutanttechnologies.com
+
+            echo "📊 Process count before cleanup: $(ps -u "$(whoami)" | wc -l)"
+
+            # Kill any stuck/zombie instances of THIS app specifically (never a blanket
+            # node kill — other apps may share the account). Ignore if none are running.
+            pkill -9 -f "workstation.mutanttechnologies.com/app.js" 2>/dev/null || true
+            sleep 1
+
             unzip -o cpanel-mutant-workstation.zip
             mkdir -p tmp
             touch tmp/restart.txt
+
+            echo "📊 Process count after cleanup: $(ps -u "$(whoami)" | wc -l)"
             echo "🚀 Deployment & Server Restart Complete!"
+
+      - name: Health Check
+        run: |
+          echo "Waiting for Passenger to boot the new build..."
+          for i in $(seq 1 10); do
+            sleep 6
+            code=$(curl -s -o /dev/null -w "%{http_code}" https://workstation.mutanttechnologies.com/login || echo "000")
+            echo "Attempt $i: HTTP $code"
+            if [ "$code" = "200" ] || [ "$code" = "307" ] || [ "$code" = "308" ]; then
+              echo "✅ Site is up."
+              exit 0
+            fi
+          done
+          echo "❌ Site did not come up healthy after deploy. Check cPanel Node.js App logs."
+          exit 1
