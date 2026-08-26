@@ -27,6 +27,7 @@ cp -R prisma/. cpanel_build/prisma/ 2>/dev/null || true
 cat << 'EOF' > cpanel_build/app.js
 process.env.NODE_ENV = 'production';
 process.env.PORT = process.env.PORT || 3000;
+process.env.PRISMA_CLIENT_ENGINE_TYPE = 'library';
 require('./server.js');
 EOF
 
