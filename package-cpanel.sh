@@ -40,26 +40,44 @@ if [ -f cpanel_build/server.js ]; then
   rm -f cpanel_build/server.js.bak
 fi
 
-# Create cPanel entry point (app.js)
+# Create crash-safe diagnostic cPanel entry point (app.js)
 cat << 'EOF' > cpanel_build/app.js
+const fs = require('fs');
+const http = require('http');
+
 process.env.NODE_ENV = 'production';
 process.env.PRISMA_CLIENT_ENGINE_TYPE = 'library';
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:./prisma/dev.db';
 
 process.chdir(__dirname);
 
-require('./server.js');
-EOF
+let initError = null;
 
-# Create emergency process flusher (kill.php) to reset CloudLinux NPROC limit
-cat << 'EOF' > cpanel_build/kill.php
-<?php
-header('Content-Type: text/plain');
-echo "Cleaning stuck Node processes...\n";
-exec('pkill -9 -u $(whoami) node 2>&1', $out);
-echo implode("\n", $out);
-echo "\n✅ Cleaned! Node process table reset successfully.";
-?>
+try {
+  require('./server.js');
+} catch (err) {
+  initError = err;
+  try {
+    fs.writeFileSync('init_error.txt', err.stack || String(err));
+  } catch (e) {}
+}
+
+if (initError) {
+  const server = http.createServer((req, res) => {
+    res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(`
+      <html>
+        <body style="font-family: sans-serif; padding: 20px; background: #0f172a; color: #f8fafc;">
+          <h1 style="color: #ef4444;">Mutant Workstation Deployment Error</h1>
+          <p>The Next.js production server encountered an error during boot:</p>
+          <pre style="background: #1e293b; padding: 15px; border-radius: 8px; color: #fca5a5; overflow-x: auto;">${initError.stack}</pre>
+        </body>
+      </html>
+    `);
+  });
+  const listenPort = process.env.PORT || 3000;
+  server.listen(listenPort);
+}
 EOF
 
 # Zip the bundle
