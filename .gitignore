@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -40,7 +41,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# cpanel deployment artifacts
+# cpanel deployment artifacts (kept as a manual fallback, no longer the primary target)
 cpanel-mutant-workstation.zip
 cpanel_build/
+
+# local SQLite file — replaced by a hosted Postgres database (DATABASE_URL)
+prisma/dev.db
 

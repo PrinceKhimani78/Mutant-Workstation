@@ -1,9 +1,10 @@
 name: Ultra Fast Deploy Mutant Workstation to cPanel
 
+# Vercel is now the primary deployment target (auto-deploys on push via its own
+# GitHub integration, no workflow needed here for that). This cPanel pipeline is
+# kept as a manual-only fallback — trigger it from the Actions tab if ever needed.
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
