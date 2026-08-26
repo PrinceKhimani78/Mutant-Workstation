@@ -25,9 +25,8 @@ cp -R prisma/. cpanel_build/prisma/ 2>/dev/null || true
 
 # Create cPanel entry point (app.js)
 cat << 'EOF' > cpanel_build/app.js
-const path = require('path');
 process.env.NODE_ENV = 'production';
-process.chdir(__dirname);
+process.env.PORT = process.env.PORT || 3000;
 require('./server.js');
 EOF
 
