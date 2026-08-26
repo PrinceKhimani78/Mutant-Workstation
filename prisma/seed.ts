@@ -6,6 +6,17 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding Mutant Workstation Database...');
 
+  // Clean existing demo records for idempotent seed execution
+  await prisma.leadActivity.deleteMany({});
+  await prisma.timeLog.deleteMany({});
+  await prisma.task.deleteMany({});
+  await prisma.projectMember.deleteMany({});
+  await prisma.project.deleteMany({});
+  await prisma.invoice.deleteMany({});
+  await prisma.client.deleteMany({});
+  await prisma.lead.deleteMany({});
+  await prisma.knowledgeArticle.deleteMany({});
+
   // Hash standard password: "password123"
   const passwordHash = await bcrypt.hash('password123', 10);
 
