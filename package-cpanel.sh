@@ -31,22 +31,39 @@ cp .next/routes-manifest.json cpanel_build/.next/ 2>/dev/null || true
 cp .next/prerender-manifest.json cpanel_build/.next/ 2>/dev/null || true
 
 # Copy database files
+cp prisma/dev.db cpanel_build/prisma/ 2>/dev/null || true
 cp -R prisma/. cpanel_build/prisma/ 2>/dev/null || true
 
-# Create cPanel Phusion Passenger entry point (app.js)
+# Create cPanel Phusion Passenger entry point (app.js) with UNIX socket support
 cat << 'EOF' > cpanel_build/app.js
+const { createServer } = require('http');
 const path = require('path');
-
-// Explicitly lock working directory to app root for cPanel Phusion Passenger
-process.cwd = function() {
-  return __dirname;
-};
+const next = require('next');
 
 process.env.NODE_ENV = 'production';
-process.env.PORT = process.env.PORT || 3000;
 process.env.PRISMA_CLIENT_ENGINE_TYPE = 'library';
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:./prisma/dev.db';
 
-require('./server.js');
+process.chdir(__dirname);
+
+const app = next({ dev: false, dir: __dirname });
+const handle = app.getRequestHandler();
+
+app.prepare().then(() => {
+  const server = createServer((req, res) => {
+    handle(req, res);
+  });
+
+  // Phusion Passenger passes socket path string or port in process.env.PORT
+  const listenTarget = process.env.PORT || 3000;
+  server.listen(listenTarget, (err) => {
+    if (err) throw err;
+    console.log(`> Ready on ${listenTarget}`);
+  });
+}).catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});
 EOF
 
 # Zip the bundle
