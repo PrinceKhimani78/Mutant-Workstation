@@ -34,36 +34,21 @@ cp .next/prerender-manifest.json cpanel_build/.next/ 2>/dev/null || true
 cp prisma/dev.db cpanel_build/prisma/ 2>/dev/null || true
 cp -R prisma/. cpanel_build/prisma/ 2>/dev/null || true
 
-# Create cPanel Phusion Passenger entry point (app.js) with UNIX socket support
-cat << 'EOF' > cpanel_build/app.js
-const { createServer } = require('http');
-const path = require('path');
-const next = require('next');
+# Patch server.js to prevent parseInt on Phusion Passenger UNIX socket strings
+if [ -f cpanel_build/server.js ]; then
+  sed -i.bak 's/parseInt(process.env.PORT, 10)/process.env.PORT/g' cpanel_build/server.js 2>/dev/null || sed -i '' 's/parseInt(process.env.PORT, 10)/process.env.PORT/g' cpanel_build/server.js
+  rm -f cpanel_build/server.js.bak
+fi
 
+# Create cPanel entry point (app.js)
+cat << 'EOF' > cpanel_build/app.js
 process.env.NODE_ENV = 'production';
 process.env.PRISMA_CLIENT_ENGINE_TYPE = 'library';
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:./prisma/dev.db';
 
 process.chdir(__dirname);
 
-const app = next({ dev: false, dir: __dirname });
-const handle = app.getRequestHandler();
-
-app.prepare().then(() => {
-  const server = createServer((req, res) => {
-    handle(req, res);
-  });
-
-  // Phusion Passenger passes socket path string or port in process.env.PORT
-  const listenTarget = process.env.PORT || 3000;
-  server.listen(listenTarget, (err) => {
-    if (err) throw err;
-    console.log(`> Ready on ${listenTarget}`);
-  });
-}).catch((err) => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+require('./server.js');
 EOF
 
 # Zip the bundle
