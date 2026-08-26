@@ -24,6 +24,7 @@ jobs:
 
       - name: Generate Prisma Client & Database
         run: |
+          npx prisma generate
           npx prisma db push
           npx prisma db seed
 
