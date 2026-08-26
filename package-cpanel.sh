@@ -51,6 +51,17 @@ process.chdir(__dirname);
 require('./server.js');
 EOF
 
+# Create emergency process flusher (kill.php) to reset CloudLinux NPROC limit
+cat << 'EOF' > cpanel_build/kill.php
+<?php
+header('Content-Type: text/plain');
+echo "Cleaning stuck Node processes...\n";
+exec('pkill -9 -u $(whoami) node 2>&1', $out);
+echo implode("\n", $out);
+echo "\n✅ Cleaned! Node process table reset successfully.";
+?>
+EOF
+
 # Zip the bundle
 rm -f cpanel-mutant-workstation.zip
 cd cpanel_build
