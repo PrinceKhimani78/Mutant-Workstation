@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# cpanel deployment artifacts
+cpanel-mutant-workstation.zip
+cpanel_build/
+
