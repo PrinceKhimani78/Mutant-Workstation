@@ -21,13 +21,201 @@ const SOURCE_OPTIONS = [
 
 const inputClass = 'input-minimal w-full px-2 py-1.5 rounded-md text-xs';
 
+function getWorkWeekDays(offsetWeeks = 0) {
+  const now = new Date();
+  const currentDay = now.getDay();
+  const distanceToMon = currentDay === 0 ? -6 : 1 - currentDay;
+
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + distanceToMon + offsetWeeks * 7);
+  monday.setHours(0, 0, 0, 0);
+
+  const days = [];
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+    const label = `${dayNames[i]} ${d.getDate()}`;
+    days.push({ dayName: dayNames[i], dateStr, label, dateObj: d });
+  }
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+
+  const formatShort = (dt: Date) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const weekLabel = `${formatShort(monday)} – ${formatShort(sunday)}, ${sunday.getFullYear()}`;
+
+  return { monday, sunday, days, weekLabel };
+}
+
+function UpworkWeeklyLogger({ client, sym, isOwner, onSaved, onClose }: any) {
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [dailyHours, setDailyHours] = useState<Record<string, string>>({});
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const { days, weekLabel } = getWorkWeekDays(weekOffset);
+
+  const totalHours = Object.values(dailyHours).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+  const weeklyRevenue = totalHours * (client.hourlyRate || 0);
+
+  const handleSaveWeek = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = days
+      .map((d) => ({
+        hours: parseFloat(dailyHours[d.dateStr] || '0'),
+        date: d.dateStr,
+        description: description.trim() || 'Upwork weekly work log',
+      }))
+      .filter((item) => item.hours > 0);
+
+    if (payload.length === 0) {
+      alert('Please enter hours for at least one day of the work week.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/clients/${client.id}/hours`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Failed to save weekly hours');
+        return;
+      }
+
+      setDailyHours({});
+      setDescription('');
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      alert(err.message || 'Error saving hours');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="p-3.5 rounded-xl bg-[var(--surface-muted)] border border-[var(--border)] space-y-3">
+      {/* Upwork Work Week Header */}
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] pb-2">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--primary)]">Upwork Work Week</span>
+          <span className="text-xs font-semibold text-[var(--foreground)]">({weekLabel})</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setWeekOffset((prev) => prev - 1)}
+            className="px-2 py-0.5 rounded text-[10px] font-medium bg-white dark:bg-zinc-800 border border-[var(--border)] hover:bg-[var(--surface-muted)]"
+          >
+            ← Prev Week
+          </button>
+          {weekOffset !== 0 && (
+            <button
+              type="button"
+              onClick={() => setWeekOffset(0)}
+              className="px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--primary)] text-white"
+            >
+              This Week
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setWeekOffset((prev) => prev + 1)}
+            className="px-2 py-0.5 rounded text-[10px] font-medium bg-white dark:bg-zinc-800 border border-[var(--border)] hover:bg-[var(--surface-muted)]"
+          >
+            Next Week →
+          </button>
+        </div>
+      </div>
+
+      {/* 7-Day Daily Hours Grid */}
+      <form onSubmit={handleSaveWeek} className="space-y-3">
+        <div className="grid grid-cols-7 gap-1">
+          {days.map((d) => (
+            <div key={d.dateStr} className="flex flex-col items-center">
+              <span className="text-[10px] font-medium text-[var(--muted-foreground)] mb-1">{d.label}</span>
+              <input
+                type="number"
+                step="0.25"
+                min="0"
+                max="24"
+                placeholder="0"
+                value={dailyHours[d.dateStr] || ''}
+                onChange={(e) => setDailyHours({ ...dailyHours, [d.dateStr]: e.target.value })}
+                className="w-full text-center px-1 py-1 rounded border border-[var(--border)] text-xs font-semibold bg-white dark:bg-zinc-900 focus:outline-none focus:border-[var(--primary)]"
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Weekly Summary & Memo */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-[var(--border)]">
+          <div className="text-xs space-y-0.5">
+            <div className="flex justify-between">
+              <span className="text-[var(--muted-foreground)] font-medium">Logged this week:</span>
+              <span className="font-bold text-[var(--foreground)]">{totalHours.toFixed(1)} hrs</span>
+            </div>
+            {client.weeklyHourLimit && (
+              <div className="flex justify-between text-[11px]">
+                <span className="text-[var(--muted-foreground)]">Weekly Cap:</span>
+                <span className={totalHours > client.weeklyHourLimit ? 'text-red-500 font-bold' : 'text-[var(--muted-foreground)]'}>
+                  {totalHours.toFixed(1)} / {client.weeklyHourLimit} hrs
+                </span>
+              </div>
+            )}
+            {isOwner && client.hourlyRate && (
+              <div className="flex justify-between pt-0.5 border-t border-[var(--border)] text-[11px]">
+                <span className="text-[var(--muted-foreground)]">Week Earnings:</span>
+                <span className="font-bold text-[var(--primary)]">{sym}{weeklyRevenue.toLocaleString()}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <input
+              type="text"
+              placeholder="Work memo / Upwork memo (optional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-2 py-1 rounded text-xs border border-[var(--border)] bg-white dark:bg-zinc-900"
+            />
+            <div className="flex justify-end gap-1.5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-2.5 py-1 text-[11px] font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] rounded"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving || totalHours === 0}
+                className="btn-primary px-3 py-1 text-[11px] font-semibold rounded disabled:opacity-50"
+              >
+                {saving ? 'Saving Week…' : `Save ${totalHours.toFixed(1)} hrs`}
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [loggingHoursFor, setLoggingHoursFor] = useState<string | null>(null);
-  const [hourForm, setHourForm] = useState({ hours: '', date: '', description: '' });
   const [historyFor, setHistoryFor] = useState<string | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [progressFor, setProgressFor] = useState<any | null>(null);
@@ -77,24 +265,6 @@ export default function ClientsPage() {
     }
     setEditingId(null);
     fetchClients();
-  };
-
-  const submitHours = async (e: React.FormEvent, clientId: string) => {
-    e.preventDefault();
-    const res = await fetch(`/api/clients/${clientId}/hours`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(hourForm),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to log hours');
-      return;
-    }
-    setHourForm({ hours: '', date: '', description: '' });
-    setLoggingHoursFor(null);
-    fetchClients();
-    if (historyFor === clientId) loadHistory(clientId);
   };
 
   const loadHistory = (clientId: string) => {
@@ -243,10 +413,10 @@ export default function ClientsPage() {
 
                       <div className="flex items-center gap-2 pt-1">
                         <button
-                          onClick={() => { setLoggingHoursFor(isLoggingHours ? null : client.id); setHourForm({ hours: '', date: '', description: '' }); }}
+                          onClick={() => setLoggingHoursFor(isLoggingHours ? null : client.id)}
                           className="flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-[var(--border-strong)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)] text-[11px] font-medium"
                         >
-                          <Plus className="w-3 h-3" /> Log hours
+                          <Plus className="w-3 h-3" /> Log hours (Upwork week)
                         </button>
                         <button
                           onClick={() => toggleHistory(client.id)}
@@ -263,14 +433,16 @@ export default function ClientsPage() {
                       </div>
 
                       {isLoggingHours && (
-                        <form onSubmit={(e) => submitHours(e, client.id)} className="p-2.5 rounded-lg bg-[var(--surface-muted)] space-y-1.5">
-                          <div className="grid grid-cols-2 gap-1.5">
-                            <input required type="number" step="0.25" min="0.25" value={hourForm.hours} onChange={(e) => setHourForm({ ...hourForm, hours: e.target.value })} placeholder="Hours" className={inputClass} />
-                            <input type="date" value={hourForm.date} onChange={(e) => setHourForm({ ...hourForm, date: e.target.value })} className={inputClass} />
-                          </div>
-                          <input value={hourForm.description} onChange={(e) => setHourForm({ ...hourForm, description: e.target.value })} placeholder="Note (optional)" className={inputClass} />
-                          <button type="submit" className="btn-primary w-full py-1.5 rounded-md text-[11px] font-semibold">Save hours</button>
-                        </form>
+                        <UpworkWeeklyLogger
+                          client={client}
+                          sym={sym}
+                          isOwner={isOwner}
+                          onSaved={() => {
+                            fetchClients();
+                            if (historyFor === client.id) loadHistory(client.id);
+                          }}
+                          onClose={() => setLoggingHoursFor(null)}
+                        />
                       )}
 
                       {isHistoryOpen && (
@@ -278,7 +450,7 @@ export default function ClientsPage() {
                           {history.length === 0 && <p className="text-[11px] text-[var(--muted-foreground)]">No hours logged yet.</p>}
                           {history.map((h) => (
                             <div key={h.id} className="flex items-center justify-between text-[11px] text-[var(--muted-foreground)]">
-                              <span>{new Date(h.date).toLocaleDateString()} · {h.user?.name}{h.description ? ` · ${h.description}` : ''}</span>
+                              <span>{new Date(h.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · {h.user?.name}{h.description ? ` · ${h.description}` : ''}</span>
                               <span className="font-medium text-[var(--foreground)] shrink-0">{h.hours} hrs</span>
                             </div>
                           ))}

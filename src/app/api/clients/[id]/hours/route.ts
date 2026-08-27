@@ -14,28 +14,34 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { hours, date, description } = body;
-
-    const parsedHours = parseFloat(hours);
-    if (!parsedHours || parsedHours <= 0) {
-      return NextResponse.json({ error: 'Enter a positive number of hours' }, { status: 400 });
-    }
-
     const client = await db.client.findUnique({ where: { id } });
     if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
-    const log = await db.timeLog.create({
-      data: {
-        clientId: id,
-        userId: user.id,
-        hours: parsedHours,
-        date: date ? new Date(date) : new Date(),
-        description: description || null,
-        isBillable: true,
-      },
-    });
+    const items = Array.isArray(body) ? body : [body];
+    const createdLogs = [];
 
-    return NextResponse.json({ success: true, log });
+    for (const item of items) {
+      const parsedHours = parseFloat(item.hours);
+      if (parsedHours && parsedHours > 0) {
+        const log = await db.timeLog.create({
+          data: {
+            clientId: id,
+            userId: user.id,
+            hours: parsedHours,
+            date: item.date ? new Date(item.date) : new Date(),
+            description: item.description || null,
+            isBillable: true,
+          },
+        });
+        createdLogs.push(log);
+      }
+    }
+
+    if (createdLogs.length === 0) {
+      return NextResponse.json({ error: 'Enter a positive number of hours' }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true, logs: createdLogs });
   } catch (error) {
     console.error('Client hour log error:', error);
     return NextResponse.json({ error: 'Failed to log hours' }, { status: 500 });

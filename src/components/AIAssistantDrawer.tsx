@@ -40,6 +40,62 @@ function saveChat(messages: ChatMessage[]) {
   }
 }
 
+function renderFormattedText(text: string, isUser: boolean) {
+  if (!text) return null;
+  const lines = text.split('\n');
+
+  return lines.map((line, idx) => {
+    const isHeader = /^#{1,6}\s+/.test(line.trim());
+    const cleanHeader = line.replace(/^#{1,6}\s*/, '');
+    const isBullet = /^\s*[\-\*•]\s+/.test(line);
+    const cleanLine = isBullet ? line.replace(/^\s*[\-\*•]\s+/, '') : cleanHeader;
+
+    const parts = cleanLine.split(/(\*\*.*?\*\*)/g);
+    const formattedContent = parts.map((part, pIdx) => {
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+        const innerText = part.slice(2, -2);
+        return (
+          <strong
+            key={pIdx}
+            className={isUser ? 'font-bold text-white' : 'font-semibold text-[var(--foreground)]'}
+          >
+            {innerText}
+          </strong>
+        );
+      }
+      return part.replace(/\*/g, '');
+    });
+
+    if (isHeader) {
+      return (
+        <div
+          key={idx}
+          className={`font-bold text-xs mt-2 mb-1 ${
+            isUser ? 'text-white border-b border-white/20 pb-0.5' : 'text-[var(--primary)] border-b border-[var(--border)] pb-0.5'
+          }`}
+        >
+          {formattedContent}
+        </div>
+      );
+    }
+
+    if (isBullet) {
+      return (
+        <div key={idx} className="flex items-start gap-1.5 ml-1 my-0.5">
+          <span className={isUser ? 'text-white font-bold' : 'text-[var(--primary)] font-bold'}>•</span>
+          <span className="flex-1">{formattedContent}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div key={idx} className={line.trim() === '' ? 'h-1.5' : 'my-0.5'}>
+        {formattedContent}
+      </div>
+    );
+  });
+}
+
 export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
   const [inputQuery, setInputQuery] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
@@ -141,7 +197,7 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
                     : 'bg-[var(--surface-muted)] text-[var(--foreground)] rounded-bl-sm'
                 }`}
               >
-                <div className="whitespace-pre-wrap">{msg.text}</div>
+                <div>{renderFormattedText(msg.text, msg.sender === 'user')}</div>
 
                 {msg.actions && msg.actions.length > 0 && (
                   <div className="mt-3 pt-2 border-t border-black/10 space-y-1.5">
