@@ -44,7 +44,7 @@ export default function ContactsPage() {
     fetchAll();
     fetch('/api/auth/me').then((r) => r.json()).then((d) => {
       setIsOwner(d?.user?.role === 'Owner');
-      setCanManage(['Owner', 'Sales Manager', 'Sales Executive'].includes(d?.user?.role));
+      setCanManage(['Owner', 'Sales Manager', 'Sales Executive', 'Marketing Manager', 'Marketing Executive'].includes(d?.user?.role));
     });
   }, []);
 

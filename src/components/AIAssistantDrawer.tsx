@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Bot, Sparkles, Send, X, ArrowRight, Loader2 } from 'lucide-react';
 
 interface AIAssistantDrawerProps {
@@ -8,16 +8,57 @@ interface AIAssistantDrawerProps {
   onClose: () => void;
 }
 
+type ChatMessage = { sender: 'user' | 'ai'; text: string; actions?: string[] };
+
+const WELCOME_MESSAGE: ChatMessage = {
+  sender: 'ai',
+  text: 'Welcome! How can I help you today? Ask me to analyze pipeline revenue, find overdue tasks, suggest client actions, or search SOPs.',
+  actions: ['Analyze sales pipeline', 'Find overdue tasks', 'Summarize MRR revenue', 'Search SOPs'],
+};
+
+const CHAT_STORAGE_KEY = 'mutant-ai-chat';
+const CHAT_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function loadSavedChat(): ChatMessage[] | null {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.messages?.length || typeof parsed.savedAt !== 'number') return null;
+    if (Date.now() - parsed.savedAt > CHAT_TTL_MS) return null;
+    return parsed.messages;
+  } catch {
+    return null;
+  }
+}
+
+function saveChat(messages: ChatMessage[]) {
+  try {
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({ messages, savedAt: Date.now() }));
+  } catch {
+    // storage unavailable (private mode, quota, etc.) — chat just won't persist
+  }
+}
+
 export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
   const [inputQuery, setInputQuery] = useState('');
-  const [messages, setMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string; actions?: string[] }>>([
-    {
-      sender: 'ai',
-      text: 'Welcome! How can I help you today? Ask me to analyze pipeline revenue, find overdue tasks, suggest client actions, or search SOPs.',
-      actions: ['Analyze sales pipeline', 'Find overdue tasks', 'Summarize MRR revenue', 'Search SOPs'],
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [loading, setLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Restore any conversation from the last hour once, on first mount.
+  useEffect(() => {
+    const saved = loadSavedChat();
+    if (saved) setMessages(saved);
+    setHydrated(true);
+  }, []);
+
+  // Every new message resets the 1-hour clock — an active chat never expires
+  // mid-conversation, only after an hour of not being touched.
+  useEffect(() => {
+    if (!hydrated) return; // don't overwrite storage with the initial welcome-only state before restore runs
+    saveChat(messages);
+  }, [messages, hydrated]);
 
   if (!isOpen) return null;
 

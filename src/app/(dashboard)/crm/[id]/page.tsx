@@ -75,7 +75,7 @@ export default function LeadDetailPage() {
     fetch('/api/crm/stages').then((r) => r.json()).then((d) => d.stages && setStages(d.stages));
     fetch('/api/auth/me').then((r) => r.json()).then((d) => {
       setIsOwner(d?.user?.role === 'Owner');
-      setCanManageFields(['Owner', 'Sales Manager', 'Sales Executive'].includes(d?.user?.role));
+      setCanManageFields(['Owner', 'Sales Manager', 'Sales Executive', 'Marketing Manager', 'Marketing Executive'].includes(d?.user?.role));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);

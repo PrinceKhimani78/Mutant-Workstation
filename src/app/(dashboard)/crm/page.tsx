@@ -15,7 +15,7 @@ import { PipelineBoard } from '@/components/crm/PipelineBoard';
 // Mirrors the CRM_WRITE roles in src/lib/auth.ts — controls whether stage
 // management UI shows up. The API is the real gate; this just avoids a
 // dead-end "create stage" button for roles that would get a 403 anyway.
-const CRM_WRITE_ROLES = ['Owner', 'Sales Manager', 'Sales Executive'];
+const CRM_WRITE_ROLES = ['Owner', 'Sales Manager', 'Sales Executive', 'Marketing Manager', 'Marketing Executive'];
 
 export default function CRMPage() {
   const [view, setView] = useState<'kanban' | 'table'>('kanban');

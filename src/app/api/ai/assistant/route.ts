@@ -3,8 +3,9 @@ import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { isOwner } from '@/lib/rbac';
 
-const DEFAULT_KEY = ['sk-or-v1-', '3d12102f02626204cba744441f79a4f59b7e3cd9983bae8279324cfe7759765b'].join('');
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || DEFAULT_KEY;
+// No hardcoded fallback — a committed API key is a leaked API key the moment
+// it's pushed. Set OPENROUTER_API_KEY in Vercel's environment variables.
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 export async function POST(request: Request) {
   try {
@@ -107,9 +108,10 @@ export async function POST(request: Request) {
         },
       });
 
+      const budgetLine = owner ? `\n- **Budget:** $${newLead.budget?.toLocaleString()}` : '';
       return NextResponse.json({
         success: true,
-        answer: `🎉 **Lead Successfully Created!**\n\n- **Contact Name:** ${newLead.name}\n- **Company:** ${newLead.company}\n- **Email:** ${newLead.email}\n- **Pipeline Stage:** ${newLead.stage?.name || 'New'}\n- **Budget:** $${newLead.budget?.toLocaleString()}\n- **Assigned Salesperson:** ${user.name}\n\nThis lead is now live in your CRM pipeline and visible on your Kanban board!`,
+        answer: `🎉 **Lead Successfully Created!**\n\n- **Contact Name:** ${newLead.name}\n- **Company:** ${newLead.company}\n- **Email:** ${newLead.email}\n- **Pipeline Stage:** ${newLead.stage?.name || 'New'}${budgetLine}\n- **Assigned Salesperson:** ${user.name}\n\nThis lead is now live in your CRM pipeline and visible on your Kanban board!`,
         actions: ['View Sales Pipeline', 'Create Another Lead', 'View Contacts'],
       });
     }
@@ -173,6 +175,9 @@ export async function POST(request: Request) {
         orderBy: { updatedAt: 'desc' },
       }),
       db.task.findMany({
+        // Same rule as /api/tasks: Owner sees every task, everyone else only
+        // sees what's assigned to or created by them.
+        where: owner ? {} : { OR: [{ assigneeId: user.id }, { createdById: user.id }] },
         include: {
           project: { select: { name: true } },
           assignee: { select: { name: true } },
@@ -199,7 +204,7 @@ export async function POST(request: Request) {
       email: owner ? l.email : '[Redacted]',
       source: l.source,
       stage: l.stage?.name || 'Unassigned',
-      budget: l.budget ? `$${l.budget}` : 'N/A',
+      budget: owner && l.budget ? `$${l.budget}` : 'N/A',
       assignedTo: l.assignedSalesperson?.name || 'Unassigned',
       notes: l.notes || '',
       isGhosted: l.isGhosted,
@@ -287,18 +292,21 @@ INSTRUCTIONS:
 1. Answer the user's question directly, accurately, and concisely using the provided live workstation data above.
 2. Format your response cleanly using GitHub Flavored Markdown (bullet points, bold highlights, concise metrics).
 3. If asked about leads, pipelines, clients, tasks, team members, or financial metrics, cite specific names, numbers, stages, and details from the dataset.
-4. Keep a helpful, professional, executive-level tone.`;
+4. Keep a helpful, professional, executive-level tone.
+5. Some figures above are already marked "N/A" or "[Redacted]" because this user (role: ${user.role}) isn't the account Owner — financial figures (budgets, retainer values, invoice amounts) are Owner-only. If asked about those, say plainly that this information is restricted to the account owner. Never guess, estimate, or reconstruct a number that was redacted — the redaction is enforced before this data ever reached you, so there is nothing to infer it from.`;
 
     let aiAnswer = '';
 
-    // 4. Call OpenRouter API with LLM models
-    const modelsToTry = [
-      'google/gemma-4-26b-a4b-it:free',
-      'google/gemini-2.0-flash-001',
-      'openai/gpt-4o-mini',
-      'meta-llama/llama-3.3-70b-instruct',
-      'google/gemma-2-9b-it:free',
-    ];
+    // 4. Call OpenRouter API with LLM models (skip entirely if no key configured —
+    // no point burning 4 failed requests when we already know they'll all fail)
+    const modelsToTry = OPENROUTER_API_KEY
+      ? [
+          'google/gemini-2.0-flash-001',
+          'openai/gpt-4o-mini',
+          'meta-llama/llama-3.3-70b-instruct',
+          'google/gemma-2-9b-it:free',
+        ]
+      : [];
 
     let openRouterSuccess = false;
 
