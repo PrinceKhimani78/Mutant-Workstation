@@ -30,6 +30,7 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
     contactPerson: '',
     email: '',
     phone: '',
+    source: '',
     currency: 'USD',
     billingType: 'Retainer',
     retainerValue: '',
@@ -242,6 +243,26 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
                   placeholder="billing@acmeglobal.com"
                   className={inputClass}
                 />
+              </div>
+              <div>
+                <label className={labelClass}>Source</label>
+                <select
+                  value={clientData.source}
+                  onChange={(e) => setClientData({ ...clientData, source: e.target.value })}
+                  className={inputClass}
+                >
+                  <option value="">Where did this client come from?</option>
+                  <option value="Upwork Profile 1 Prince">Upwork Profile 1 Prince</option>
+                  <option value="Upwork Profile 2 Het">Upwork Profile 2 Het</option>
+                  <option value="Upwork Profile 3 Aman">Upwork Profile 3 Aman</option>
+                  <option value="B2B Partner">B2B Partner</option>
+                  <option value="Referral">Referral</option>
+                  <option value="LinkedIn">LinkedIn</option>
+                  <option value="Direct">Direct</option>
+                  <option value="Cold Email">Cold Email</option>
+                  <option value="Website">Website</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

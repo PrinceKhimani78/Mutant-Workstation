@@ -132,10 +132,15 @@ model Client {
   id                String   @id @default(uuid())
   company           String
   contactPerson     String
-  email             String   @unique
+  // Not unique: the same contact email legitimately shows up across more than
+  // one client record (shared agency/Upwork contact, multiple engagements
+  // with the same person, etc.) — a hard DB constraint here was blocking
+  // real client creation.
+  email             String
   phone             String?
   billingInformation String?
   services          String?  // JSON string or comma separated
+  source            String?  // Upwork Profile 1 Prince, Upwork Profile 2 Het, Upwork Profile 3 Aman, B2B Partner, Referral, LinkedIn, Direct, Other
   currency          String   @default("USD") // USD or INR
   billingType       String   @default("Retainer") // Retainer or Hourly
   retainerValue     Float    @default(0)
@@ -149,6 +154,7 @@ model Client {
 
   projects          Project[]
   invoices          Invoice[]
+  timeLogs          TimeLog[]
 }
 
 model Project {
@@ -233,6 +239,10 @@ model TimeLog {
   id          String   @id @default(uuid())
   taskId      String?
   task        Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  // Direct client hour logging (no task/project required) — for hourly/B2B
+  // clients where the work isn't tracked through a formal project structure.
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   hours       Float

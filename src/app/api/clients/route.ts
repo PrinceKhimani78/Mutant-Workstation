@@ -32,14 +32,20 @@ export async function GET() {
       clients.map(async (client: any) => {
         let hoursThisWeek = 0;
         if (client.billingType === 'Hourly') {
-          const agg = await db.timeLog.aggregate({
-            _sum: { hours: true },
-            where: {
-              date: { gte: weekStart },
-              task: { project: { clientId: client.id } },
-            },
-          });
-          hoursThisWeek = agg._sum.hours || 0;
+          // Hours can come from a direct log against the client (no project
+          // needed — the common case for informal hourly/B2B work) or from
+          // TimeLogs against tasks under one of the client's projects.
+          const [direct, viaTasks] = await Promise.all([
+            db.timeLog.aggregate({
+              _sum: { hours: true },
+              where: { date: { gte: weekStart }, clientId: client.id },
+            }),
+            db.timeLog.aggregate({
+              _sum: { hours: true },
+              where: { date: { gte: weekStart }, task: { project: { clientId: client.id } } },
+            }),
+          ]);
+          hoursThisWeek = (direct._sum.hours || 0) + (viaTasks._sum.hours || 0);
         }
         const withHours = { ...client, hoursThisWeek };
         return scrubClient(withHours, owner);
@@ -66,6 +72,7 @@ export async function POST(request: Request) {
       phone,
       billingInformation,
       services,
+      source,
       currency,
       billingType,
       retainerValue,
@@ -75,6 +82,10 @@ export async function POST(request: Request) {
       assignedPmId,
     } = body;
 
+    if (!company?.trim() || !email?.trim()) {
+      return NextResponse.json({ error: 'Company name and billing email are required' }, { status: 400 });
+    }
+
     const client = await db.client.create({
       data: {
         company,
@@ -83,6 +94,7 @@ export async function POST(request: Request) {
         phone,
         billingInformation,
         services,
+        source: source || null,
         currency: currency || 'USD',
         billingType: billingType || 'Retainer',
         retainerValue: retainerValue ? parseFloat(retainerValue) : 0,
@@ -94,8 +106,9 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ success: true, client });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Client creation error:', error);
-    return NextResponse.json({ error: 'Failed to create client' }, { status: 500 });
+    const message = error?.code === 'P2002' ? 'A client with that value already exists' : 'Failed to create client';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
