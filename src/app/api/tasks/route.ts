@@ -3,19 +3,22 @@ import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { isOwner } from '@/lib/rbac';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const owner = isOwner(user);
+    const url = new URL(request.url);
+    const filter = url.searchParams.get('filter');
+
+    let whereClause: any = {};
+    if (!owner || filter === 'me') {
+      whereClause = { OR: [{ assigneeId: user.id }, { createdById: user.id }] };
+    }
 
     const tasks = await db.task.findMany({
-      // Owner/CEO sees everything. Everyone else only sees what's assigned to
-      // them or what they created themselves.
-      where: owner
-        ? {}
-        : { OR: [{ assigneeId: user.id }, { createdById: user.id }] },
+      where: whereClause,
       include: {
         project: { select: { id: true, name: true } },
         assignee: { select: { id: true, name: true, avatarUrl: true } },

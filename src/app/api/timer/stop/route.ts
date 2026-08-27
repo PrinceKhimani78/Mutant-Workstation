@@ -16,13 +16,19 @@ export async function POST(request: Request) {
     const elapsedMs = Date.now() - new Date(timer.startedAt).getTime();
     const hours = Math.max(elapsedMs / (1000 * 60 * 60), 1 / 60); // floor at 1 minute
 
+    const startTimeStr = new Date(timer.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const endTimeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const formattedDesc = description
+      ? `${description} (${startTimeStr} – ${endTimeStr})`
+      : `Worked ${startTimeStr} – ${endTimeStr}`;
+
     const [log] = await db.$transaction([
       db.timeLog.create({
         data: {
           taskId: timer.taskId,
           userId: user.id,
           hours: Math.round(hours * 100) / 100,
-          description,
+          description: formattedDesc,
           isBillable: true,
         },
       }),

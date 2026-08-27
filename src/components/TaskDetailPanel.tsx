@@ -249,6 +249,26 @@ export function TaskDetailPanel({ taskId, onClose, onChanged }: TaskDetailPanelP
                 )}
               </div>
 
+              {/* Logged Sessions Breakdown with Start & End Times */}
+              {task.timeLogs && task.timeLogs.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <p className="text-[11px] font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Logged Sessions ({task.timeLogs.length})</p>
+                  <div className="space-y-1 max-h-36 overflow-y-auto">
+                    {task.timeLogs.map((log: any) => (
+                      <div key={log.id} className="flex items-center justify-between text-[11px] p-2 rounded-lg bg-[var(--surface-muted)]">
+                        <div className="min-w-0">
+                          <span className="font-semibold text-[var(--foreground)]">{log.user?.name || 'User'}</span>
+                          <p className="text-[10px] text-[var(--muted-foreground)] truncate">
+                            {new Date(log.date).toLocaleDateString()} {log.description ? `· ${log.description}` : ''}
+                          </p>
+                        </div>
+                        <span className="font-bold text-[var(--primary)] shrink-0 ml-2">{log.hours} hrs</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Comments Thread */}
               <div className="space-y-2 pt-2 border-t border-[var(--border)]">
                 <p className="text-xs font-semibold text-[var(--foreground)]">Comments ({task.comments?.length || 0})</p>
