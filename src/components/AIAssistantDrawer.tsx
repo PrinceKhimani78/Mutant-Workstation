@@ -66,6 +66,11 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
     const queryText = textToSend || inputQuery;
     if (!queryText.trim() || loading) return;
 
+    // Snapshot before appending the new user message — this is the actual
+    // back-and-forth the model needs to make sense of a reply like "I am the
+    // owner" that only means something in light of what was just asked.
+    const historyForRequest = messages;
+
     setMessages((prev) => [...prev, { sender: 'user', text: queryText }]);
     if (!textToSend) setInputQuery('');
     setLoading(true);
@@ -74,7 +79,7 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
       const res = await fetch('/api/ai/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: queryText }),
+        body: JSON.stringify({ query: queryText, history: historyForRequest }),
       });
       const data = await res.json();
 

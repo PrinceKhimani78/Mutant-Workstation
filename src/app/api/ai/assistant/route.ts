@@ -12,10 +12,19 @@ export async function POST(request: Request) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { query } = await request.json();
+    const { query, history } = await request.json();
     if (!query || !query.trim()) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
+
+    // Recent turns only (last 10), and only role+text — no point re-sending
+    // suggested-action lists back as if the model said them.
+    const conversationHistory: { role: 'user' | 'assistant'; content: string }[] = Array.isArray(history)
+      ? history
+          .slice(-10)
+          .map((m: any) => ({ role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant', content: String(m.text || '') }))
+          .filter((m: any) => m.content.trim())
+      : [];
 
     const lowerQuery = query.toLowerCase();
     const owner = isOwner(user);
@@ -293,7 +302,10 @@ INSTRUCTIONS:
 2. Format your response cleanly using GitHub Flavored Markdown (bullet points, bold highlights, concise metrics).
 3. If asked about leads, pipelines, clients, tasks, team members, or financial metrics, cite specific names, numbers, stages, and details from the dataset.
 4. Keep a helpful, professional, executive-level tone.
-5. Some figures above are already marked "N/A" or "[Redacted]" because this user (role: ${user.role}) isn't the account Owner — financial figures (budgets, retainer values, invoice amounts) are Owner-only. If asked about those, say plainly that this information is restricted to the account owner. Never guess, estimate, or reconstruct a number that was redacted — the redaction is enforced before this data ever reached you, so there is nothing to infer it from.`;
+4b. You are in a read-only conversation right now — you cannot create, edit, or delete anything yourself here; only a small set of exact trigger phrases (handled before you're even called) actually perform actions. Never say something was "created", "added", "updated", or "saved" unless it already existed in the data snapshot above before this message. If the user asks you to create/change something, tell them what phrase to use (e.g. "create lead") or that they can use Quick Create, rather than pretending you did it.
+5. ${owner
+      ? `This user (${user.name}, role: Owner) IS the account owner — all financial figures in the data above (budgets, retainer values, hourly rates, invoice amounts) are real and fully visible to them. Share them freely and specifically when asked; do not claim anything is restricted.`
+      : `This user (role: ${user.role}) is NOT the account owner. Financial figures (budgets, retainer values, hourly rates, invoice amounts) were stripped before this data reached you and now show as "N/A" or "[Redacted]" — that's not a coincidence, it's enforced. If asked about those, say plainly that this information is restricted to the account owner. Never guess, estimate, or reconstruct a redacted number — there is nothing in the data to infer it from.`}`;
 
     let aiAnswer = '';
 
@@ -324,6 +336,7 @@ INSTRUCTIONS:
             model,
             messages: [
               { role: 'system', content: systemPrompt },
+              ...conversationHistory,
               { role: 'user', content: query },
             ],
             temperature: 0.3,
