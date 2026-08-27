@@ -16,9 +16,118 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
 
+    const lowerQuery = query.toLowerCase();
     const owner = isOwner(user);
 
-    // 1. Fetch full live CRM & Workstation dataset from PostgreSQL / Prisma
+    // 1. ACTION EXECUTION INTENT CHECK
+    // CREATE LEAD INTENT
+    if (
+      lowerQuery.includes('create lead') ||
+      lowerQuery.includes('add lead') ||
+      lowerQuery.includes('create a lead') ||
+      lowerQuery.includes('new lead')
+    ) {
+      let leadName = query
+        .replace(/create\s+(a\s+)?(new\s+)?lead/gi, '')
+        .replace(/add\s+(a\s+)?(new\s+)?lead/gi, '')
+        .replace(/for\s+/gi, '')
+        .trim();
+
+      if (!leadName || leadName.length < 2) {
+        leadName = 'New Prospect';
+      }
+
+      const emailMatch = query.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      const email = emailMatch
+        ? emailMatch[0]
+        : `${leadName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'lead'}@mutanttechnologies.com`;
+      
+      const company = leadName.toLowerCase().includes('at ')
+        ? leadName.split(/at\s+/i)[1]
+        : `${leadName}'s Company`;
+
+      // Get or seed default pipeline stage
+      let defaultStage = await db.pipelineStage.findFirst({ orderBy: { order: 'asc' } });
+      if (!defaultStage) {
+        const STAGE_DEFS = [
+          { name: 'New', color: '#2563eb', order: 0 },
+          { name: 'Contacted', color: '#7c3aed', order: 1 },
+          { name: 'Discovery', color: '#d97706', order: 2 },
+          { name: 'Proposal Sent', color: '#fc6203', order: 3 },
+          { name: 'Negotiation', color: '#db2777', order: 4 },
+          { name: 'Won', color: '#059669', order: 5 },
+          { name: 'Lost', color: '#6b7280', order: 6 },
+        ];
+        await db.pipelineStage.createMany({ data: STAGE_DEFS });
+        defaultStage = await db.pipelineStage.findFirst({ orderBy: { order: 'asc' } });
+      }
+
+      const newLead = await db.lead.create({
+        data: {
+          name: leadName.replace(/at\s+.*/i, '').trim(),
+          company,
+          email,
+          source: 'Website',
+          stageId: defaultStage!.id,
+          assignedSalespersonId: user.id,
+          budget: 15000,
+          probability: 50,
+          notes: `Created via Mutant AI Engine prompt: "${query}"`,
+        },
+        include: { stage: true },
+      });
+
+      await db.leadActivity.create({
+        data: {
+          leadId: newLead.id,
+          type: 'StatusChange',
+          title: 'Lead created via AI Engine',
+          description: `Created by ${user.name} via AI Assistant prompt: "${query}"`,
+          createdBy: user.name,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        answer: `🎉 **Lead Successfully Created!**\n\n- **Contact Name:** ${newLead.name}\n- **Company:** ${newLead.company}\n- **Email:** ${newLead.email}\n- **Pipeline Stage:** ${newLead.stage?.name || 'New'}\n- **Estimated Budget:** $15,000\n- **Assigned Salesperson:** ${user.name}\n\nThis lead is now live in your CRM pipeline and visible on your Kanban board!`,
+        actions: ['View Sales Pipeline', 'Create Another Lead', 'View Contacts'],
+      });
+    }
+
+    // CREATE TASK INTENT
+    if (
+      lowerQuery.includes('create task') ||
+      lowerQuery.includes('add task') ||
+      lowerQuery.includes('create a task') ||
+      lowerQuery.includes('new task')
+    ) {
+      let taskTitle = query
+        .replace(/create\s+(a\s+)?(new\s+)?task/gi, '')
+        .replace(/add\s+(a\s+)?(new\s+)?task/gi, '')
+        .trim();
+
+      if (!taskTitle || taskTitle.length < 2) {
+        taskTitle = 'New Workstation Task';
+      }
+
+      const newTask = await db.task.create({
+        data: {
+          title: taskTitle,
+          priority: 'High',
+          status: 'To Do',
+          assigneeId: user.id,
+          createdById: user.id,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        answer: `✅ **Task Created Successfully!**\n\n- **Title:** ${newTask.title}\n- **Priority:** High\n- **Status:** To Do\n- **Assignee:** ${user.name}\n\nTask added to your workstation task board!`,
+        actions: ['View Task Board', 'Create Another Task'],
+      });
+    }
+
+    // 2. Fetch full live CRM & Workstation dataset from PostgreSQL / Prisma
     const [leads, stages, clients, projects, tasks, users, invoices, sops] = await Promise.all([
       db.lead.findMany({
         include: {
@@ -63,7 +172,7 @@ export async function POST(request: Request) {
       }),
     ]);
 
-    // 2. Prepare comprehensive CRM context prompt
+    // 3. Prepare comprehensive CRM context prompt
     const leadSummary = leads.map((l) => ({
       name: l.name,
       company: l.company,
@@ -162,7 +271,7 @@ INSTRUCTIONS:
 
     let aiAnswer = '';
 
-    // 3. Call OpenRouter API with LLM models
+    // 4. Call OpenRouter API with LLM models
     const modelsToTry = [
       'google/gemma-4-26b-a4b-it:free',
       'google/gemini-2.0-flash-001',
@@ -212,13 +321,12 @@ INSTRUCTIONS:
       }
     }
 
-    // 4. Fallback intelligent response generator if OpenRouter is unreachable or rate-limited
+    // 5. Fallback intelligent response generator if OpenRouter is unreachable or rate-limited
     if (!openRouterSuccess || !aiAnswer) {
-      const lowerQuery = query.toLowerCase();
       if (lowerQuery.includes('lead') || lowerQuery.includes('crm') || lowerQuery.includes('pipeline')) {
-        aiAnswer = `⚡ **Mutant AI CRM Snapshot:**\n- **Total Leads:** ${leads.length}\n- **Pipeline Stages:** ${stages.map((s) => `${s.name} (${s._count?.leads || 0})`).join(', ')}\n- **Top Lead Contacts:** ${leads.slice(0, 3).map((l) => `${l.name} (${l.company})`).join(', ')}`;
+        aiAnswer = `⚡ **Mutant AI CRM Snapshot:**\n- **Total Leads:** ${leads.length}\n- **Pipeline Stages:** ${stages.map((s) => `${s.name} (${s._count?.leads || 0})`).join(', ')}\n- **Top Lead Contacts:** ${leads.length > 0 ? leads.slice(0, 3).map((l) => `${l.name} (${l.company})`).join(', ') : 'No leads registered yet'}`;
       } else if (lowerQuery.includes('project') || lowerQuery.includes('client')) {
-        aiAnswer = `🚀 **Projects & Clients Overview:**\n- **Active Retainer Clients:** ${clients.length}\n- **Projects in Progress:** ${projects.length}\n- **Top Projects:** ${projects.slice(0, 3).map((p) => `${p.name} (${p.progress}%)`).join(', ')}`;
+        aiAnswer = `🚀 **Projects & Clients Overview:**\n- **Active Retainer Clients:** ${clients.length}\n- **Projects in Progress:** ${projects.length}\n- **Top Projects:** ${projects.length > 0 ? projects.slice(0, 3).map((p) => `${p.name} (${p.progress}%)`).join(', ') : 'No projects registered yet'}`;
       } else if (lowerQuery.includes('team') || lowerQuery.includes('employee') || lowerQuery.includes('member')) {
         aiAnswer = `👥 **Team Members & Access:**\n- **Total Active Team Members:** ${users.length}\n- **Roles:** ${Array.from(new Set(users.map((u) => u.role))).join(', ')}`;
       } else {
@@ -226,8 +334,7 @@ INSTRUCTIONS:
       }
     }
 
-    // 5. Dynamic Suggested Actions based on Query
-    const lowerQuery = query.toLowerCase();
+    // 6. Dynamic Suggested Actions based on Query
     let actions: string[] = ['Create Lead', 'View Pipeline', 'View Projects'];
     if (lowerQuery.includes('lead') || lowerQuery.includes('crm')) {
       actions = ['Create New Lead', 'View Sales Pipeline', 'Filter Ghosted Leads'];
