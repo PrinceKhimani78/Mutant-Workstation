@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { CheckSquare, Plus, Play, Square, MessageSquare, X, Filter, User } from 'lucide-react';
+import { CheckSquare, Plus, Play, Square, MessageSquare, X, Filter, User, Calendar } from 'lucide-react';
 import { TaskDetailPanel } from '@/components/TaskDetailPanel';
 
 function formatElapsed(ms: number) {
@@ -31,7 +31,7 @@ export default function TasksPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'me' | 'all'>('me');
   const [statusFilter, setStatusFilter] = useState<string>('All');
-  const [form, setForm] = useState({ title: '', projectId: '', assigneeId: '', priority: 'Medium' });
+  const [form, setForm] = useState({ title: '', projectId: '', assigneeId: '', priority: 'Medium', dueDate: '' });
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchTasks = (filterOverride?: 'me' | 'all') => {
@@ -101,9 +101,10 @@ export default function TasksPage() {
         projectId: form.projectId || undefined,
         assigneeId: form.assigneeId || currentUserId,
         priority: form.priority,
+        dueDate: form.dueDate || undefined,
       }),
     });
-    setForm({ title: '', projectId: '', assigneeId: currentUserId || '', priority: 'Medium' });
+    setForm({ title: '', projectId: '', assigneeId: currentUserId || '', priority: 'Medium', dueDate: '' });
     setShowCreate(false);
     fetchTasks();
   };
@@ -231,9 +232,15 @@ export default function TasksPage() {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-1 text-xs text-[var(--muted-foreground)] truncate">
+                  <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-[var(--muted-foreground)]">
                     {task.project?.name && <span className="font-medium text-[var(--foreground)]">{task.project.name} ·</span>}
                     <span>Assigned to <strong className="text-[var(--foreground)]">{task.assignee?.name || 'Unassigned'}</strong></span>
+                    {task.dueDate && (
+                      <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded text-[10px]">
+                        <Calendar className="w-3 h-3 shrink-0" />
+                        Due {new Date(task.dueDate).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </span>
+                    )}
                   </div>
                 </button>
               </div>
@@ -333,6 +340,16 @@ export default function TasksPage() {
                     {['Low', 'Medium', 'High', 'Urgent'].map((p) => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-[var(--muted-foreground)] mb-1">Due Date</label>
+                <input
+                  type="date"
+                  value={form.dueDate}
+                  onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+                  className="input-minimal w-full px-3 py-2 rounded-lg text-xs"
+                />
               </div>
               <button type="submit" className="btn-primary w-full py-2 rounded-lg text-xs font-semibold">
                 Create task

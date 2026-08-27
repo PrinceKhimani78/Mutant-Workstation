@@ -200,22 +200,14 @@ export function TaskDetailPanel({ taskId, onClose, onChanged }: TaskDetailPanelP
                   </select>
                 </div>
 
-                <div className="flex flex-col justify-end">
-                  {task.status !== 'Completed' ? (
-                    <button
-                      onClick={() => updateField('status', 'Completed')}
-                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--success-soft)] text-[var(--success)] hover:bg-[var(--success)] hover:text-white transition-colors text-xs font-semibold"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Mark Completed
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => updateField('status', 'To Do')}
-                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-xs font-medium"
-                    >
-                      Reopen Task
-                    </button>
-                  )}
+                <div>
+                  <label className="block text-[11px] font-medium text-[var(--muted-foreground)] mb-1">Due Date</label>
+                  <input
+                    type="date"
+                    value={task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''}
+                    onChange={(e) => updateField('dueDate', e.target.value)}
+                    className="input-minimal w-full px-2.5 py-1.5 rounded-lg text-xs"
+                  />
                 </div>
               </div>
 
