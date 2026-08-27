@@ -3,7 +3,20 @@
 import React, { useEffect, useState } from 'react';
 import { UserCheck, Plus, X, Ban, CheckCircle2 } from 'lucide-react';
 
-const ROLES = ['Owner', 'Sales Manager', 'Sales Executive', 'Project Manager', 'Developer', 'Designer', 'HR', 'Finance', 'Accountant'];
+const ROLES = [
+  'Owner',
+  'Sales Manager',
+  'Sales Executive',
+  'Marketing Manager',
+  'Marketing Executive',
+  'Marketing',
+  'Project Manager',
+  'Developer',
+  'Designer',
+  'HR',
+  'Finance',
+  'Accountant',
+];
 
 export default function EmployeesPage() {
   const [team, setTeam] = useState<any[]>([]);
