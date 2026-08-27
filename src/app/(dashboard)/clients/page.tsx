@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Briefcase, Mail, Phone, Pencil, Plus, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Briefcase, Mail, Phone, Pencil, Plus, Clock, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
+import { ClientProgressModal } from '@/components/crm/ClientProgressModal';
 
 const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', INR: '₹' };
 
@@ -29,6 +30,7 @@ export default function ClientsPage() {
   const [hourForm, setHourForm] = useState({ hours: '', date: '', description: '' });
   const [historyFor, setHistoryFor] = useState<string | null>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [progressFor, setProgressFor] = useState<any | null>(null);
 
   const fetchClients = () => {
     fetch('/api/clients')
@@ -252,6 +254,12 @@ export default function ClientsPage() {
                         >
                           <Clock className="w-3 h-3" /> History {isHistoryOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         </button>
+                        <button
+                          onClick={() => setProgressFor(client)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-[11px] font-medium"
+                        >
+                          <TrendingUp className="w-3 h-3" /> Progress
+                        </button>
                       </div>
 
                       {isLoggingHours && (
@@ -312,6 +320,8 @@ export default function ClientsPage() {
           );
         })}
       </div>
+
+      {progressFor && <ClientProgressModal client={progressFor} onClose={() => setProgressFor(null)} />}
     </div>
   );
 }

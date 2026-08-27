@@ -228,16 +228,64 @@ export async function POST(request: Request) {
       leadCount: s._count?.leads || 0,
     }));
 
-    const clientSummary = clients.map((c) => ({
-      company: c.company,
-      contactPerson: c.contactPerson,
-      email: c.email,
-      billingType: c.billingType,
-      retainerValue: owner ? `$${c.retainerValue}` : 'N/A',
-      hourlyRate: owner ? `$${c.hourlyRate || 0}` : 'N/A',
-      status: c.status,
-      services: c.services || '',
-    }));
+    const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', INR: '₹' };
+    const symFor = (currency: string) => CURRENCY_SYMBOL[currency] || '$';
+
+    const weekStart = (() => {
+      const d = new Date();
+      const day = d.getDay();
+      d.setDate(d.getDate() + (day === 0 ? -6 : 1) - day);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    })();
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+    // Real logged hours per hourly client — not an invented "assume 160hrs/mo"
+    // figure. Owner-only, same as every other money-adjacent number.
+    const hourlyClients = clients.filter((c) => c.billingType === 'Hourly');
+    const hoursByClient = new Map<string, { week: number; month: number }>();
+    if (owner && hourlyClients.length > 0) {
+      await Promise.all(
+        hourlyClients.map(async (c) => {
+          const [weekAgg, monthAgg] = await Promise.all([
+            db.timeLog.aggregate({
+              _sum: { hours: true },
+              where: { date: { gte: weekStart }, OR: [{ clientId: c.id }, { task: { project: { clientId: c.id } } }] },
+            }),
+            db.timeLog.aggregate({
+              _sum: { hours: true },
+              where: { date: { gte: monthStart }, OR: [{ clientId: c.id }, { task: { project: { clientId: c.id } } }] },
+            }),
+          ]);
+          hoursByClient.set(c.id, { week: weekAgg._sum.hours || 0, month: monthAgg._sum.hours || 0 });
+        })
+      );
+    }
+
+    const clientSummary = clients.map((c) => {
+      const sym = symFor(c.currency);
+      const hours = hoursByClient.get(c.id);
+      // "Potential" monthly revenue is derived from the agreed weekly hour cap
+      // (the actual committed number), not a guessed full-time figure.
+      const monthlyPotential = owner && c.billingType === 'Hourly' && c.hourlyRate && c.weeklyHourLimit
+        ? Math.round(c.hourlyRate * c.weeklyHourLimit * 4.33)
+        : null;
+      return {
+        company: c.company,
+        contactPerson: c.contactPerson,
+        email: c.email,
+        billingType: c.billingType,
+        currency: c.currency,
+        retainerValue: owner && c.billingType === 'Retainer' ? `${sym}${c.retainerValue}` : 'N/A',
+        hourlyRate: owner && c.billingType === 'Hourly' && c.hourlyRate ? `${sym}${c.hourlyRate}/hr` : 'N/A',
+        weeklyHourCap: c.weeklyHourLimit ?? 'N/A',
+        hoursLoggedThisWeek: owner && c.billingType === 'Hourly' ? (hours?.week ?? 0) : 'N/A',
+        hoursLoggedThisMonth: owner && c.billingType === 'Hourly' ? (hours?.month ?? 0) : 'N/A',
+        monthlyPotentialRevenueBasedOnAgreedCap: monthlyPotential != null ? `${sym}${monthlyPotential.toLocaleString()}` : 'N/A',
+        status: c.status,
+        services: c.services || '',
+      };
+    });
 
     const projectSummary = projects.map((p) => ({
       name: p.name,
@@ -269,7 +317,7 @@ export async function POST(request: Request) {
       ? invoices.map((i) => ({
           invoiceNumber: i.invoiceNumber,
           client: i.client?.company || 'N/A',
-          amount: `$${i.amount}`,
+          amount: `${symFor(i.currency)}${i.amount}`,
           status: i.status,
           dueDate: i.dueDate ? i.dueDate.toISOString().split('T')[0] : 'N/A',
         }))
@@ -306,6 +354,8 @@ INSTRUCTIONS:
 3. If asked about leads, pipelines, clients, tasks, team members, or financial metrics, cite specific names, numbers, stages, and details from the dataset.
 4. Keep a helpful, professional, executive-level tone.
 4b. You are in a read-only conversation right now — you cannot create, edit, or delete anything yourself here; only a small set of exact trigger phrases (handled before you're even called) actually perform actions. Never say something was "created", "added", "updated", or "saved" unless it already existed in the data snapshot above before this message. If the user asks you to create/change something, tell them what phrase to use (e.g. "create lead") or that they can use Quick Create, rather than pretending you did it.
+4c. Clients and invoices carry a currency (USD or INR, see the "currency" field). NEVER add a USD figure and an INR figure together into one blended total — $ and ₹ are different currencies, summing them produces a meaningless number. When asked for a total (e.g. "expected monthly revenue"), report USD and INR totals separately, each with its correct symbol.
+4d. For hourly clients, hoursLoggedThisWeek / hoursLoggedThisMonth are the real logged hours — use them when talking about actual work done. monthlyPotentialRevenueBasedOnAgreedCap is pre-computed from the client's real hourly rate and their agreed weekly hour cap — use that exact figure when asked about potential/expected revenue from an hourly client, worded as based on their agreed weekly cap. Never invent your own hours assumption (e.g. "assuming 160 hours/month") — that number doesn't exist anywhere in this business and must not appear in your answer.
 5. ${owner
       ? `This user (${user.name}, role: Owner) IS the account owner — all financial figures in the data above (budgets, retainer values, hourly rates, invoice amounts) are real and fully visible to them. Share them freely and specifically when asked; do not claim anything is restricted.`
       : `This user (role: ${user.role}) is NOT the account owner. Financial figures (budgets, retainer values, hourly rates, invoice amounts) were stripped before this data reached you and now show as "N/A" or "[Redacted]" — that's not a coincidence, it's enforced. If asked about those, say plainly that this information is restricted to the account owner. Never guess, estimate, or reconstruct a redacted number — there is nothing in the data to infer it from.`}`;
