@@ -5,16 +5,9 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Shield, ArrowRight } from 'lucide-react';
 
-const DEMO_ROLES = [
-  { email: 'prince@mutanttechnologies.com', name: 'Prince Khimani', role: 'Owner' },
-  { email: 'het@mutanttechnologies.com', name: 'Het Patel', role: 'Sales Manager' },
-  { email: 'aman@mutanttechnologies.com', name: 'Aman Sharma', role: 'Project Manager' },
-  { email: 'dev@mutanttechnologies.com', name: 'Senior Dev', role: 'Developer' },
-];
-
 export default function LoginPage() {
-  const [email, setEmail] = useState('prince@mutanttechnologies.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -43,11 +36,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const setDemoRole = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('password123');
   };
 
   return (
@@ -110,27 +98,6 @@ export default function LoginPage() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Demo Role Shortcuts */}
-          <div className="mt-6 pt-5 border-t border-[var(--border)]">
-            <p className="text-[11px] text-[var(--muted-foreground)] mb-2.5">Demo accounts (password: password123)</p>
-            <div className="flex flex-wrap gap-1.5">
-              {DEMO_ROLES.map((r) => (
-                <button
-                  key={r.email}
-                  type="button"
-                  onClick={() => setDemoRole(r.email)}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                    email === r.email
-                      ? 'border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]'
-                      : 'border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--border-strong)] hover:text-[var(--foreground)]'
-                  }`}
-                >
-                  {r.name.split(' ')[0]} · {r.role}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         <div className="mt-6 text-center text-[11px] text-[var(--muted-foreground)] flex items-center justify-center gap-1.5">
