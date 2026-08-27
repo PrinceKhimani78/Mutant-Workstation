@@ -7,6 +7,7 @@ import { TagsManager } from '@/components/crm/TagsManager';
 import { CustomFieldsManager } from '@/components/crm/CustomFieldsManager';
 import { CustomFieldDisplay } from '@/components/crm/CustomFieldInput';
 import { parseValue } from '@/lib/customFields';
+import { AccessGuard } from '@/components/AccessGuard';
 
 const SEARCH_SCOPES = [
   { value: 'all', label: 'All fields' },
@@ -16,7 +17,7 @@ const SEARCH_SCOPES = [
   { value: 'phone', label: 'Phone' },
 ];
 
-export default function ContactsPage() {
+function ContactsContent() {
   const [leads, setLeads] = useState<any[]>([]);
   const [stages, setStages] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
@@ -236,5 +237,13 @@ export default function ContactsPage() {
       {showTagsManager && <TagsManager tags={tags} onClose={() => setShowTagsManager(false)} onRefresh={fetchAll} />}
       {showFieldsManager && <CustomFieldsManager fields={customFields} onClose={() => setShowFieldsManager(false)} onRefresh={fetchAll} />}
     </div>
+  );
+}
+
+export default function ContactsPage() {
+  return (
+    <AccessGuard path="/contacts">
+      <ContactsContent />
+    </AccessGuard>
   );
 }

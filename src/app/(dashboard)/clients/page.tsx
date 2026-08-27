@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Briefcase, Mail, Phone, Pencil, Plus, Clock, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
 import { ClientProgressModal } from '@/components/crm/ClientProgressModal';
+import { AccessGuard } from '@/components/AccessGuard';
 
 const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', INR: '₹' };
 
@@ -210,7 +211,7 @@ function UpworkWeeklyLogger({ client, sym, isOwner, onSaved, onClose }: any) {
   );
 }
 
-export default function ClientsPage() {
+function ClientsContent() {
   const [clients, setClients] = useState<any[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -495,5 +496,13 @@ export default function ClientsPage() {
 
       {progressFor && <ClientProgressModal client={progressFor} onClose={() => setProgressFor(null)} />}
     </div>
+  );
+}
+
+export default function ClientsPage() {
+  return (
+    <AccessGuard path="/clients">
+      <ClientsContent />
+    </AccessGuard>
   );
 }

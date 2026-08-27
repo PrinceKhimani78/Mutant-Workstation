@@ -8,6 +8,11 @@ export async function GET(request: Request) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const CRM_READ_ROLES = ['Owner', 'Sales Manager', 'Sales Executive'];
+    if (!CRM_READ_ROLES.includes(user.role)) {
+      return NextResponse.json({ error: 'Forbidden: Access restricted to Sales team & Owner' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const stageId = searchParams.get('stageId') || '';

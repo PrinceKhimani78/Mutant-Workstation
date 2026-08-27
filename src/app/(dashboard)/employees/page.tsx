@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { UserCheck, Plus, X, Ban, CheckCircle2 } from 'lucide-react';
+import { AccessGuard } from '@/components/AccessGuard';
 
 const ROLES = [
   'Owner',
@@ -18,7 +19,7 @@ const ROLES = [
   'Accountant',
 ];
 
-export default function EmployeesPage() {
+function EmployeesContent() {
   const [team, setTeam] = useState<any[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -128,12 +129,12 @@ export default function EmployeesPage() {
               <X className="w-4 h-4" />
             </button>
             <h3 className="text-sm font-semibold text-[var(--foreground)] mb-4">Add team member</h3>
+            {error && <div className="p-2.5 mb-3 rounded-lg bg-[var(--danger-soft)] text-[var(--danger)] text-xs">{error}</div>}
             <form onSubmit={handleAdd} className="space-y-3">
-              {error && <div className="p-2.5 rounded-lg bg-[var(--danger-soft)] text-[var(--danger)] text-xs">{error}</div>}
               <input
                 required
                 type="text"
-                placeholder="Full name"
+                placeholder="Full name *"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="input-minimal w-full px-3 py-2 rounded-lg text-xs"
@@ -141,7 +142,7 @@ export default function EmployeesPage() {
               <input
                 required
                 type="email"
-                placeholder="Work email"
+                placeholder="Email address *"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="input-minimal w-full px-3 py-2 rounded-lg text-xs"
@@ -149,7 +150,7 @@ export default function EmployeesPage() {
               <input
                 required
                 type="password"
-                placeholder="Temporary password"
+                placeholder="Initial password *"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 className="input-minimal w-full px-3 py-2 rounded-lg text-xs"
@@ -161,7 +162,9 @@ export default function EmployeesPage() {
                   className="input-minimal px-3 py-2 rounded-lg text-xs"
                 >
                   {ROLES.map((r) => (
-                    <option key={r} value={r}>{r}</option>
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
                   ))}
                 </select>
                 <input
@@ -180,5 +183,13 @@ export default function EmployeesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function EmployeesPage() {
+  return (
+    <AccessGuard path="/employees">
+      <EmployeesContent />
+    </AccessGuard>
   );
 }
