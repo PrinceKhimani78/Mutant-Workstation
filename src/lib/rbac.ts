@@ -14,7 +14,7 @@ function omit<T extends Record<string, any>>(obj: T, keys: string[]): T {
   return copy;
 }
 
-const LEAD_MONEY_FIELDS = ['budget', 'proposalValue'];
+const LEAD_MONEY_FIELDS = ['budget', 'proposalValue', 'hourlyRate'];
 const CLIENT_MONEY_FIELDS = ['retainerValue', 'hourlyRate'];
 const PROJECT_MONEY_FIELDS = ['budget'];
 const INVOICE_MONEY_FIELDS = ['amount', 'tax', 'discount'];

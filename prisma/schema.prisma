@@ -55,7 +55,10 @@ model Lead {
   assignedSalesperson   User?    @relation("AssignedSales", fields: [assignedSalespersonId], references: [id])
   stageId             String
   stage               PipelineStage @relation(fields: [stageId], references: [id])
-  budget              Float?
+  estimateType        String   @default("Fixed") // Fixed or Hourly — same idea as Client.billingType
+  budget              Float?   // used when estimateType = Fixed
+  hourlyRate          Float?   // used when estimateType = Hourly
+  estimatedWeeklyHours Float?  // used when estimateType = Hourly
   probability         Int?     @default(50)
   expectedCloseDate   DateTime?
   proposalValue       Float?

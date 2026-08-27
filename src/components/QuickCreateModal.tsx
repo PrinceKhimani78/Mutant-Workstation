@@ -22,7 +22,10 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
     email: '',
     phone: '',
     source: 'Upwork Profile 1 Prince',
+    estimateType: 'Fixed',
     budget: '',
+    hourlyRate: '',
+    estimatedWeeklyHours: '',
   });
 
   const [clientData, setClientData] = useState({
@@ -190,6 +193,7 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
                     <option value="Upwork Profile 1 Prince">Upwork · Prince</option>
                     <option value="Upwork Profile 2 Het">Upwork · Het</option>
                     <option value="Upwork Profile 3 Aman">Upwork · Aman</option>
+                    <option value="Bruntwork">Bruntwork</option>
                     <option value="LinkedIn">LinkedIn</option>
                     <option value="Cold Email">Cold Email</option>
                     <option value="Website">Website</option>
@@ -198,15 +202,57 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
                 </div>
               </div>
               <div>
-                <label className={labelClass}>Estimated budget ($)</label>
-                <input
-                  type="number"
-                  value={leadData.budget}
-                  onChange={(e) => setLeadData({ ...leadData, budget: e.target.value })}
-                  placeholder="25000"
-                  className={inputClass}
-                />
+                <label className={labelClass}>Estimate type</label>
+                <div className="flex gap-1 p-1 rounded-lg bg-[var(--surface-muted)]">
+                  {['Fixed', 'Hourly'].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setLeadData({ ...leadData, estimateType: t })}
+                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        leadData.estimateType === t ? 'bg-white text-[var(--foreground)] shadow-sm' : 'text-[var(--muted-foreground)]'
+                      }`}
+                    >
+                      {t === 'Fixed' ? 'Fixed budget' : 'Hourly (Upwork)'}
+                    </button>
+                  ))}
+                </div>
               </div>
+              {leadData.estimateType === 'Fixed' ? (
+                <div>
+                  <label className={labelClass}>Estimated budget ($)</label>
+                  <input
+                    type="number"
+                    value={leadData.budget}
+                    onChange={(e) => setLeadData({ ...leadData, budget: e.target.value })}
+                    placeholder="25000"
+                    className={inputClass}
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Hourly rate ($)</label>
+                    <input
+                      type="number"
+                      value={leadData.hourlyRate}
+                      onChange={(e) => setLeadData({ ...leadData, hourlyRate: e.target.value })}
+                      placeholder="15"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Hours per week</label>
+                    <input
+                      type="number"
+                      value={leadData.estimatedWeeklyHours}
+                      onChange={(e) => setLeadData({ ...leadData, estimatedWeeklyHours: e.target.value })}
+                      placeholder="20"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              )}
             </>
           )}
 

@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { name, company, email, phone, whatsapp, website, linkedin, country, industry, source, budget, probability, proposalValue, notes, assignedSalespersonId, stageId } = body;
+    const { name, company, email, phone, whatsapp, website, linkedin, country, industry, source, estimateType, budget, hourlyRate, estimatedWeeklyHours, probability, proposalValue, notes, assignedSalespersonId, stageId } = body;
 
     if (!name || !company || !email || !source) {
       return NextResponse.json({ error: 'Name, company, email, and source are required' }, { status: 400 });
@@ -98,7 +98,10 @@ export async function POST(request: Request) {
         country,
         industry,
         source,
+        estimateType: estimateType || 'Fixed',
         budget: budget ? parseFloat(budget) : null,
+        hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null,
+        estimatedWeeklyHours: estimatedWeeklyHours ? parseFloat(estimatedWeeklyHours) : null,
         probability: probability ? parseInt(probability) : 50,
         proposalValue: proposalValue ? parseFloat(proposalValue) : null,
         notes,

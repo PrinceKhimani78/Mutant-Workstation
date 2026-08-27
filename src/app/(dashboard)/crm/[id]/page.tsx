@@ -89,7 +89,9 @@ export default function LeadDetailPage() {
       name: lead.name, company: lead.company, email: lead.email, phone: lead.phone || '',
       whatsapp: lead.whatsapp || '', website: lead.website || '', linkedin: lead.linkedin || '',
       country: lead.country || '', industry: lead.industry || '',
-      budget: lead.budget ?? '', probability: lead.probability ?? '', proposalValue: lead.proposalValue ?? '',
+      estimateType: lead.estimateType || 'Fixed',
+      budget: lead.budget ?? '', hourlyRate: lead.hourlyRate ?? '', estimatedWeeklyHours: lead.estimatedWeeklyHours ?? '',
+      probability: lead.probability ?? '', proposalValue: lead.proposalValue ?? '',
     });
     setEditing(true);
   };
@@ -257,9 +259,37 @@ export default function LeadDetailPage() {
                 {isOwner && (
                   <>
                     <div>
-                      <label className="block text-[10px] font-medium text-[var(--muted-foreground)] mb-0.5">Budget ($)</label>
-                      <input type="number" value={form.budget ?? ''} onChange={(e) => setForm({ ...form, budget: e.target.value })} className="input-minimal w-full px-2.5 py-1.5 rounded-md text-xs" />
+                      <label className="block text-[10px] font-medium text-[var(--muted-foreground)] mb-0.5">Estimate type</label>
+                      <div className="flex gap-1 p-1 rounded-lg bg-[var(--surface-muted)]">
+                        {['Fixed', 'Hourly'].map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setForm({ ...form, estimateType: t })}
+                            className={`flex-1 py-1 rounded-md text-[11px] font-medium transition-colors ${form.estimateType === t ? 'bg-white text-[var(--foreground)] shadow-sm' : 'text-[var(--muted-foreground)]'}`}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+                    {form.estimateType === 'Hourly' ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-medium text-[var(--muted-foreground)] mb-0.5">Hourly rate ($)</label>
+                          <input type="number" value={form.hourlyRate ?? ''} onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })} className="input-minimal w-full px-2.5 py-1.5 rounded-md text-xs" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-[var(--muted-foreground)] mb-0.5">Hours/week</label>
+                          <input type="number" value={form.estimatedWeeklyHours ?? ''} onChange={(e) => setForm({ ...form, estimatedWeeklyHours: e.target.value })} className="input-minimal w-full px-2.5 py-1.5 rounded-md text-xs" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-[10px] font-medium text-[var(--muted-foreground)] mb-0.5">Budget ($)</label>
+                        <input type="number" value={form.budget ?? ''} onChange={(e) => setForm({ ...form, budget: e.target.value })} className="input-minimal w-full px-2.5 py-1.5 rounded-md text-xs" />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-[10px] font-medium text-[var(--muted-foreground)] mb-0.5">Probability (%)</label>
                       <input type="number" value={form.probability ?? ''} onChange={(e) => setForm({ ...form, probability: e.target.value })} className="input-minimal w-full px-2.5 py-1.5 rounded-md text-xs" />
@@ -291,10 +321,23 @@ export default function LeadDetailPage() {
           {isOwner && (
             <div className="card p-5 space-y-2.5">
               <h3 className="text-xs font-semibold text-[var(--foreground)] uppercase tracking-wide">Deal</h3>
-              <div className="flex justify-between text-xs">
-                <span className="text-[var(--muted-foreground)]">Budget</span>
-                <span className="font-semibold text-[var(--foreground)]">{lead.budget ? `$${lead.budget.toLocaleString()}` : '—'}</span>
-              </div>
+              {lead.estimateType === 'Hourly' ? (
+                <>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[var(--muted-foreground)]">Hourly rate</span>
+                    <span className="font-semibold text-[var(--foreground)]">{lead.hourlyRate ? `$${lead.hourlyRate}/hr` : '—'}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[var(--muted-foreground)]">Estimated hours/week</span>
+                    <span className="font-semibold text-[var(--foreground)]">{lead.estimatedWeeklyHours ?? '—'}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between text-xs">
+                  <span className="text-[var(--muted-foreground)]">Budget</span>
+                  <span className="font-semibold text-[var(--foreground)]">{lead.budget ? `$${lead.budget.toLocaleString()}` : '—'}</span>
+                </div>
+              )}
               <div className="flex justify-between text-xs">
                 <span className="text-[var(--muted-foreground)]">Proposal value</span>
                 <span className="font-semibold text-[var(--foreground)]">{lead.proposalValue ? `$${lead.proposalValue.toLocaleString()}` : '—'}</span>

@@ -11,6 +11,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { PipelineBoard } from '@/components/crm/PipelineBoard';
+import { formatEstimate } from '@/lib/leadEstimate';
 
 // Mirrors the CRM_WRITE roles in src/lib/auth.ts — controls whether stage
 // management UI shows up. The API is the real gate; this just avoids a
@@ -205,6 +206,7 @@ export default function CRMPage() {
             <option value="Upwork Profile 1 Prince">Upwork · Prince</option>
             <option value="Upwork Profile 2 Het">Upwork · Het</option>
             <option value="Upwork Profile 3 Aman">Upwork · Aman</option>
+            <option value="Bruntwork">Bruntwork</option>
             <option value="LinkedIn">LinkedIn</option>
             <option value="Cold Email">Cold Email</option>
             <option value="Website">Website</option>
@@ -296,7 +298,7 @@ export default function CRMPage() {
                         {lead.stage?.name}
                       </span>
                     </td>
-                    {isOwner && <td className="p-3.5 font-semibold text-[var(--foreground)]">${lead.budget?.toLocaleString() ?? '—'}</td>}
+                    {isOwner && <td className="p-3.5 font-semibold text-[var(--foreground)]">{formatEstimate(lead)}</td>}
                     <td className="p-3.5 text-[var(--muted-foreground)]">{lead.assignedSalesperson?.name || '—'}</td>
                     <td className="p-3.5">
                       <div className="flex items-center gap-1 justify-end">

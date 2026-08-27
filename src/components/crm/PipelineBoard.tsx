@@ -9,6 +9,7 @@ import {
 import { SortableContext, useSortable, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Ghost, Trash2, Plus, Pencil, X, Check, GripVertical } from 'lucide-react';
+import { formatEstimate } from '@/lib/leadEstimate';
 
 const STAGE_COLORS = ['#fc6203', '#2563eb', '#7c3aed', '#d97706', '#db2777', '#059669', '#6b7280', '#dc2626'];
 
@@ -69,7 +70,7 @@ function LeadCard({ lead, stages, isOwner, onToggleGhosted, onDeleteLead, onStag
 
       <div className="flex items-center justify-between pt-1.5 border-t border-[var(--border)] text-[10px]">
         <span className="text-[var(--muted-foreground)] truncate">{lead.source}</span>
-        {isOwner && <span className="font-semibold text-[var(--foreground)] shrink-0">${lead.budget?.toLocaleString() ?? '—'}</span>}
+        {isOwner && <span className="font-semibold text-[var(--foreground)] shrink-0">{formatEstimate(lead)}</span>}
       </div>
 
       <select

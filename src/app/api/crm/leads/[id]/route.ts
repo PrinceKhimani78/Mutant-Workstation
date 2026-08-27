@@ -48,13 +48,14 @@ export async function PATCH(
 
     const allowed = [
       'name', 'company', 'email', 'phone', 'whatsapp', 'website', 'linkedin',
-      'country', 'industry', 'source', 'budget', 'probability', 'proposalValue',
+      'country', 'industry', 'source', 'estimateType', 'budget', 'hourlyRate',
+      'estimatedWeeklyHours', 'probability', 'proposalValue',
       'notes', 'assignedSalespersonId', 'stageId', 'isGhosted', 'expectedCloseDate',
     ];
     const data: Record<string, any> = {};
     for (const key of allowed) {
       if (key in body) {
-        if (['budget', 'proposalValue'].includes(key)) data[key] = body[key] === '' || body[key] === null ? null : parseFloat(body[key]);
+        if (['budget', 'proposalValue', 'hourlyRate', 'estimatedWeeklyHours'].includes(key)) data[key] = body[key] === '' || body[key] === null ? null : parseFloat(body[key]);
         else if (key === 'probability') data[key] = body[key] === '' || body[key] === null ? null : parseInt(body[key]);
         else if (key === 'expectedCloseDate') data[key] = body[key] ? new Date(body[key]) : null;
         else data[key] = body[key];
