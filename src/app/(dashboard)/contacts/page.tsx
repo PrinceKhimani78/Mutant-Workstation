@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Contact, Search, Tag as TagIcon, Settings2, Columns3, Ghost } from 'lucide-react';
+import { Contact, Search, Tag as TagIcon, Settings2, Columns3, Ghost, Briefcase, UserCheck } from 'lucide-react';
 import { TagsManager } from '@/components/crm/TagsManager';
 import { CustomFieldsManager } from '@/components/crm/CustomFieldsManager';
 import { CustomFieldDisplay } from '@/components/crm/CustomFieldInput';
@@ -19,6 +19,7 @@ const SEARCH_SCOPES = [
 
 function ContactsContent() {
   const [leads, setLeads] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
   const [stages, setStages] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
   const [customFields, setCustomFields] = useState<any[]>([]);
@@ -27,6 +28,7 @@ function ContactsContent() {
 
   const [search, setSearch] = useState('');
   const [scope, setScope] = useState('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'client' | 'lead'>('all');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [stageFilter, setStageFilter] = useState('');
   const [visibleFieldIds, setVisibleFieldIds] = useState<string[]>([]);
@@ -36,6 +38,7 @@ function ContactsContent() {
 
   const fetchAll = () => {
     fetch('/api/crm/leads').then((r) => r.json()).then((d) => d.leads && setLeads(d.leads));
+    fetch('/api/clients').then((r) => r.json()).then((d) => d.clients && setClients(d.clients));
     fetch('/api/crm/stages').then((r) => r.json()).then((d) => d.stages && setStages(d.stages));
     fetch('/api/crm/tags').then((r) => r.json()).then((d) => d.tags && setTags(d.tags));
     fetch('/api/crm/custom-fields').then((r) => r.json()).then((d) => d.fields && setCustomFields(d.fields));
@@ -54,26 +57,73 @@ function ContactsContent() {
     return cfv ? parseValue(cfv.value) : null;
   };
 
+  // Combine both CRM Leads & Retainer/Hourly Clients into a single Contacts Directory
+  const allContacts = useMemo(() => {
+    const leadEntries = leads.map((l) => ({
+      id: l.id,
+      name: l.name,
+      company: l.company,
+      email: l.email,
+      phone: l.phone,
+      source: l.source,
+      stageId: l.stageId,
+      stageOrStatus: l.stage?.name || 'New',
+      badgeColor: l.stage?.color || '#2563eb',
+      tags: l.tags || [],
+      customFieldValues: l.customFieldValues || [],
+      isGhosted: l.isGhosted,
+      isClient: false,
+      rawItem: l,
+    }));
+
+    const clientEntries = clients.map((c) => ({
+      id: c.id,
+      name: c.contactPerson || c.company,
+      company: c.company,
+      email: c.email,
+      phone: c.phone,
+      source: c.source,
+      stageId: '',
+      stageOrStatus: `${c.billingType || 'Client'} · ${c.status || 'Active'}`,
+      badgeColor: '#059669',
+      tags: [],
+      customFieldValues: [],
+      isGhosted: false,
+      isClient: true,
+      rawItem: c,
+    }));
+
+    return [...clientEntries, ...leadEntries];
+  }, [leads, clients]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return leads.filter((lead) => {
-      if (stageFilter && lead.stageId !== stageFilter) return false;
-      if (selectedTagIds.length > 0 && !lead.tags?.some((t: any) => selectedTagIds.includes(t.id))) return false;
+    return allContacts.filter((item) => {
+      if (typeFilter === 'client' && !item.isClient) return false;
+      if (typeFilter === 'lead' && item.isClient) return false;
+
+      if (!item.isClient) {
+        if (stageFilter && item.stageId !== stageFilter) return false;
+        if (selectedTagIds.length > 0 && !item.tags?.some((t: any) => selectedTagIds.includes(t.id))) return false;
+      }
 
       if (!q) return true;
 
       if (scope === 'all') {
-        const haystacks = [lead.name, lead.company, lead.email, lead.phone, ...(lead.customFieldValues || []).map((v: any) => v.value)];
+        const haystacks = [item.name, item.company, item.email, item.phone, item.source, ...(item.customFieldValues || []).map((v: any) => v.value)];
         return haystacks.some((h) => h && String(h).toLowerCase().includes(q));
       }
       if (['name', 'company', 'email', 'phone'].includes(scope)) {
-        return String(lead[scope] || '').toLowerCase().includes(q);
+        return String((item as any)[scope] || '').toLowerCase().includes(q);
       }
       // scope is a custom field id
-      const value = getFieldValue(lead, scope);
-      return value != null && String(value).toLowerCase().includes(q);
+      if (!item.isClient) {
+        const value = getFieldValue(item.rawItem, scope);
+        return value != null && String(value).toLowerCase().includes(q);
+      }
+      return false;
     });
-  }, [leads, search, scope, selectedTagIds, stageFilter]);
+  }, [allContacts, search, scope, typeFilter, selectedTagIds, stageFilter]);
 
   const toggleTagFilter = (tagId: string) => {
     setSelectedTagIds((prev) => (prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]));
@@ -89,9 +139,9 @@ function ContactsContent() {
         <div>
           <h2 className="text-lg font-bold text-[var(--foreground)] flex items-center gap-2">
             <Contact className="w-4.5 h-4.5 text-[var(--primary)]" />
-            <span>Contacts</span>
+            <span>Contacts directory</span>
           </h2>
-          <p className="text-xs text-[var(--muted-foreground)]">Every lead and contact — search, filter, and manage tags & custom fields.</p>
+          <p className="text-xs text-[var(--muted-foreground)]">Unified directory of all converted clients, active retainer clients, and CRM leads.</p>
         </div>
         {canManage && (
           <div className="flex items-center gap-2 shrink-0">
@@ -105,7 +155,7 @@ function ContactsContent() {
         )}
       </div>
 
-      {/* Filter bar */}
+      {/* Filter Bar */}
       <div className="card p-3.5 space-y-3">
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="relative flex-1 min-w-[200px]">
@@ -114,10 +164,33 @@ function ContactsContent() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search contacts…"
+              placeholder="Search contacts, clients, emails, phone numbers…"
               className="input-minimal w-full pl-9 pr-3 py-2 rounded-lg text-xs"
             />
           </div>
+
+          {/* Type Filter Buttons */}
+          <div className="flex items-center gap-1 p-1 bg-[var(--surface-muted)] rounded-lg text-xs">
+            <button
+              onClick={() => setTypeFilter('all')}
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${typeFilter === 'all' ? 'bg-white dark:bg-zinc-800 text-[var(--foreground)] shadow-sm' : 'text-[var(--muted-foreground)]'}`}
+            >
+              All ({allContacts.length})
+            </button>
+            <button
+              onClick={() => setTypeFilter('client')}
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${typeFilter === 'client' ? 'bg-white dark:bg-zinc-800 text-[var(--foreground)] shadow-sm' : 'text-[var(--muted-foreground)]'}`}
+            >
+              Clients ({clients.length})
+            </button>
+            <button
+              onClick={() => setTypeFilter('lead')}
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${typeFilter === 'lead' ? 'bg-white dark:bg-zinc-800 text-[var(--foreground)] shadow-sm' : 'text-[var(--muted-foreground)]'}`}
+            >
+              Leads ({leads.length})
+            </button>
+          </div>
+
           <select value={scope} onChange={(e) => setScope(e.target.value)} className="input-minimal px-2.5 py-2 rounded-lg text-xs">
             {SEARCH_SCOPES.map((s) => <option key={s.value} value={s.value}>Search in: {s.label}</option>)}
             {customFields.map((f) => <option key={f.id} value={f.id}>Search in: {f.name}</option>)}
@@ -143,9 +216,6 @@ function ContactsContent() {
               </div>
             )}
           </div>
-          <span className="text-xs text-[var(--muted-foreground)] ml-auto">
-            <strong className="text-[var(--foreground)] font-semibold">{filtered.length}</strong> of {leads.length}
-          </span>
         </div>
 
         {tags.length > 0 && (
@@ -168,18 +238,19 @@ function ContactsContent() {
         )}
       </div>
 
-      {/* Table */}
+      {/* Contacts Table */}
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--surface-muted)] text-[var(--muted-foreground)] uppercase text-[10px]">
-                <th className="p-3.5 font-semibold">Name</th>
+                <th className="p-3.5 font-semibold">Type</th>
+                <th className="p-3.5 font-semibold">Contact Name</th>
                 <th className="p-3.5 font-semibold">Company</th>
                 <th className="p-3.5 font-semibold">Email</th>
                 <th className="p-3.5 font-semibold">Phone</th>
-                <th className="p-3.5 font-semibold">Tags</th>
-                <th className="p-3.5 font-semibold">Stage</th>
+                <th className="p-3.5 font-semibold">Source</th>
+                <th className="p-3.5 font-semibold">Status / Stage</th>
                 {visibleFieldIds.map((fid) => {
                   const f = customFields.find((cf) => cf.id === fid);
                   return <th key={fid} className="p-3.5 font-semibold">{f?.name}</th>;
@@ -187,34 +258,49 @@ function ContactsContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
-              {filtered.map((lead) => (
-                <tr key={lead.id} className={`hover:bg-[var(--surface-muted)] transition-colors ${lead.isGhosted ? 'opacity-60' : ''}`}>
+              {filtered.map((item) => (
+                <tr key={`${item.isClient ? 'client' : 'lead'}-${item.id}`} className={`hover:bg-[var(--surface-muted)] transition-colors ${item.isGhosted ? 'opacity-60' : ''}`}>
                   <td className="p-3.5">
-                    <Link href={`/crm/${lead.id}`} className="font-semibold text-[var(--foreground)] hover:underline flex items-center gap-1.5">
-                      {lead.name}
-                      {lead.isGhosted && <Ghost className="w-3 h-3 text-[var(--muted-foreground)]" />}
-                    </Link>
+                    {item.isClient ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        <Briefcase className="w-3 h-3" /> Client
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                        <UserCheck className="w-3 h-3" /> CRM Lead
+                      </span>
+                    )}
                   </td>
-                  <td className="p-3.5 text-[var(--muted-foreground)]">{lead.company}</td>
-                  <td className="p-3.5 text-[var(--muted-foreground)]">{lead.email}</td>
-                  <td className="p-3.5 text-[var(--muted-foreground)]">{lead.phone || '—'}</td>
-                  <td className="p-3.5">
-                    <div className="flex flex-wrap gap-1 max-w-[160px]">
-                      {lead.tags?.map((t: any) => (
-                        <span key={t.id} className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: `${t.color}1a`, color: t.color }}>
-                          {t.name}
-                        </span>
-                      ))}
-                    </div>
+                  <td className="p-3.5 font-bold text-[var(--foreground)]">
+                    {!item.isClient ? (
+                      <Link href={`/crm/${item.id}`} className="hover:underline flex items-center gap-1.5">
+                        {item.name}
+                        {item.isGhosted && <Ghost className="w-3 h-3 text-[var(--muted-foreground)]" />}
+                      </Link>
+                    ) : (
+                      <span>{item.name}</span>
+                    )}
+                  </td>
+                  <td className="p-3.5 text-[var(--muted-foreground)] font-medium">{item.company}</td>
+                  <td className="p-3.5 text-[var(--muted-foreground)]">{item.email}</td>
+                  <td className="p-3.5 text-[var(--muted-foreground)]">{item.phone || '—'}</td>
+                  <td className="p-3.5 text-[var(--muted-foreground)]">
+                    {item.source ? (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-[var(--surface-muted)] text-[var(--muted-foreground)]">
+                        {item.source}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td className="p-3.5">
-                    <span className="badge px-2 py-0.5 text-[10px]" style={{ backgroundColor: `${lead.stage?.color}1a`, color: lead.stage?.color }}>
-                      {lead.stage?.name}
+                    <span className="badge px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: `${item.badgeColor}1a`, color: item.badgeColor }}>
+                      {item.stageOrStatus}
                     </span>
                   </td>
                   {visibleFieldIds.map((fid) => {
                     const f = customFields.find((cf) => cf.id === fid);
-                    const value = getFieldValue(lead, fid);
+                    const value = !item.isClient ? getFieldValue(item.rawItem, fid) : null;
                     const hidden = f?.type === 'monetary' && !isOwner;
                     return (
                       <td key={fid} className="p-3.5 text-[var(--muted-foreground)]">
@@ -226,7 +312,7 @@ function ContactsContent() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6 + visibleFieldIds.length} className="p-8 text-center text-[var(--muted-foreground)]">No contacts match your filters.</td>
+                  <td colSpan={7 + visibleFieldIds.length} className="p-8 text-center text-[var(--muted-foreground)]">No contacts match your filters.</td>
                 </tr>
               )}
             </tbody>
