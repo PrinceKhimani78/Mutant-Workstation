@@ -27,24 +27,44 @@ export async function POST(request: Request) {
       lowerQuery.includes('create a lead') ||
       lowerQuery.includes('new lead')
     ) {
-      let leadName = query
-        .replace(/create\s+(a\s+)?(new\s+)?lead/gi, '')
-        .replace(/add\s+(a\s+)?(new\s+)?lead/gi, '')
-        .replace(/for\s+/gi, '')
-        .trim();
-
-      if (!leadName || leadName.length < 2) {
-        leadName = 'New Prospect';
+      // Extract numeric budget from query (e.g. 10000 INR, $25,000, 5000)
+      let parsedBudget: number = 10000;
+      const budgetMatch = query.match(/(\d[\d,]*)\s*(?:inr|usd|\$|₹|k)?/i);
+      if (budgetMatch) {
+        const rawNum = budgetMatch[1].replace(/,/g, '');
+        const val = parseInt(rawNum, 10);
+        if (!isNaN(val) && val > 0) {
+          parsedBudget = val;
+        }
       }
 
+      // Extract email if provided
       const emailMatch = query.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+
+      // Clean prompt string to extract the actual contact name
+      let cleanName = query
+        .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '')
+        .replace(/(\d[\d,]*)\s*(?:inr|usd|\$|₹|k)?/gi, '')
+        .replace(/create\s+(a\s+)?(new\s+)?lead/gi, '')
+        .replace(/add\s+(a\s+)?(new\s+)?lead/gi, '')
+        .replace(/\b(of|for|name|named|company|with|budget|inr|usd)\b/gi, '')
+        .replace(/^[:\-,\s]+|[:\-,\s]+$/g, '')
+        .trim();
+
+      if (!cleanName || cleanName.length < 2) {
+        cleanName = 'New Prospect';
+      }
+
+      const formattedName = cleanName
+        .split(' ')
+        .filter(Boolean)
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+
       const email = emailMatch
         ? emailMatch[0]
-        : `${leadName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'lead'}@mutanttechnologies.com`;
-      
-      const company = leadName.toLowerCase().includes('at ')
-        ? leadName.split(/at\s+/i)[1]
-        : `${leadName}'s Company`;
+        : `${formattedName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'lead'}@mutanttechnologies.com`;
+      const company = `${formattedName}'s Company`;
 
       // Get or seed default pipeline stage
       let defaultStage = await db.pipelineStage.findFirst({ orderBy: { order: 'asc' } });
@@ -64,13 +84,13 @@ export async function POST(request: Request) {
 
       const newLead = await db.lead.create({
         data: {
-          name: leadName.replace(/at\s+.*/i, '').trim(),
+          name: formattedName,
           company,
           email,
           source: 'Website',
           stageId: defaultStage!.id,
           assignedSalespersonId: user.id,
-          budget: 15000,
+          budget: parsedBudget,
           probability: 50,
           notes: `Created via Mutant AI Engine prompt: "${query}"`,
         },
@@ -89,7 +109,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         success: true,
-        answer: `🎉 **Lead Successfully Created!**\n\n- **Contact Name:** ${newLead.name}\n- **Company:** ${newLead.company}\n- **Email:** ${newLead.email}\n- **Pipeline Stage:** ${newLead.stage?.name || 'New'}\n- **Estimated Budget:** $15,000\n- **Assigned Salesperson:** ${user.name}\n\nThis lead is now live in your CRM pipeline and visible on your Kanban board!`,
+        answer: `🎉 **Lead Successfully Created!**\n\n- **Contact Name:** ${newLead.name}\n- **Company:** ${newLead.company}\n- **Email:** ${newLead.email}\n- **Pipeline Stage:** ${newLead.stage?.name || 'New'}\n- **Budget:** $${newLead.budget?.toLocaleString()}\n- **Assigned Salesperson:** ${user.name}\n\nThis lead is now live in your CRM pipeline and visible on your Kanban board!`,
         actions: ['View Sales Pipeline', 'Create Another Lead', 'View Contacts'],
       });
     }
