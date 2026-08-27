@@ -21,6 +21,21 @@ import {
   X,
 } from 'lucide-react';
 
+const ROLE_ALLOWED_NAV: Record<string, string[]> = {
+  Owner: ['ALL'],
+  'Sales Manager': ['/dashboard', '/crm', '/contacts', '/clients', '/knowledge', '/reports'],
+  'Sales Executive': ['/dashboard', '/crm', '/contacts', '/clients', '/knowledge'],
+  'Marketing Manager': ['/dashboard', '/projects', '/tasks', '/knowledge', '/reports'],
+  'Marketing Executive': ['/dashboard', '/projects', '/tasks', '/knowledge'],
+  Marketing: ['/dashboard', '/projects', '/tasks', '/knowledge'],
+  'Project Manager': ['/dashboard', '/projects', '/tasks', '/clients', '/knowledge'],
+  Developer: ['/dashboard', '/projects', '/tasks', '/knowledge'],
+  Designer: ['/dashboard', '/projects', '/tasks', '/knowledge'],
+  HR: ['/dashboard', '/employees', '/knowledge'],
+  Finance: ['/dashboard', '/finance', '/reports', '/knowledge'],
+  Accountant: ['/dashboard', '/finance', '/knowledge'],
+};
+
 interface SidebarProps {
   user?: {
     name: string;
@@ -37,9 +52,10 @@ export function Sidebar({ user, onOpenAI, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isOwner = user?.role === 'Owner';
+  const role = user?.role || 'Owner';
+  const allowedHrefs = ROLE_ALLOWED_NAV[role] || ROLE_ALLOWED_NAV['Owner'];
 
-  const navItems = [
+  const allNavItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'CRM & Leads', href: '/crm', icon: Users },
     { name: 'Contacts', href: '/contacts', icon: Contact },
@@ -48,10 +64,13 @@ export function Sidebar({ user, onOpenAI, isOpen, onClose }: SidebarProps) {
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
     { name: 'Employees', href: '/employees', icon: UserCheck },
     { name: 'Knowledge Base', href: '/knowledge', icon: BookOpen },
-    // Revenue lives on Finance & Invoices — owner-only.
-    ...(isOwner ? [{ name: 'Finance & Invoices', href: '/finance', icon: DollarSign }] : []),
+    { name: 'Finance & Invoices', href: '/finance', icon: DollarSign },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
   ];
+
+  const navItems = allNavItems.filter(
+    (item) => allowedHrefs.includes('ALL') || allowedHrefs.includes(item.href)
+  );
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
