@@ -57,36 +57,44 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
     setLoading(true);
 
     try {
+      let res: Response;
       if (tab === 'lead') {
-        await fetch('/api/crm/leads', {
+        res = await fetch('/api/crm/leads', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(leadData),
         });
       } else if (tab === 'client') {
-        await fetch('/api/clients', {
+        res = await fetch('/api/clients', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(clientData),
         });
       } else if (tab === 'project') {
-        await fetch('/api/projects', {
+        res = await fetch('/api/projects', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(projectData),
         });
-      } else if (tab === 'task') {
-        await fetch('/api/tasks', {
+      } else {
+        res = await fetch('/api/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(taskData),
         });
       }
 
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || `Failed to create ${tab}`);
+        return;
+      }
+
       if (onRefresh) onRefresh();
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }

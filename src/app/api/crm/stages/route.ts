@@ -7,10 +7,27 @@ export async function GET() {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const stages = await db.pipelineStage.findMany({
+    let stages = await db.pipelineStage.findMany({
       orderBy: { order: 'asc' },
       include: { _count: { select: { leads: true } } },
     });
+
+    if (stages.length === 0) {
+      const STAGE_DEFS = [
+        { name: 'New', color: '#2563eb', order: 0 },
+        { name: 'Contacted', color: '#7c3aed', order: 1 },
+        { name: 'Discovery', color: '#d97706', order: 2 },
+        { name: 'Proposal Sent', color: '#fc6203', order: 3 },
+        { name: 'Negotiation', color: '#db2777', order: 4 },
+        { name: 'Won', color: '#059669', order: 5 },
+        { name: 'Lost', color: '#6b7280', order: 6 },
+      ];
+      await db.pipelineStage.createMany({ data: STAGE_DEFS });
+      stages = await db.pipelineStage.findMany({
+        orderBy: { order: 'asc' },
+        include: { _count: { select: { leads: true } } },
+      });
+    }
 
     return NextResponse.json({ success: true, stages });
   } catch (error) {
