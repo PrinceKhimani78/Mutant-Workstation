@@ -3,10 +3,33 @@ import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { isOwner, scrubLead } from '@/lib/rbac';
 
+let schemaChecked = false;
+async function ensureLeadSchema() {
+  if (schemaChecked) return;
+  try {
+    // Postgres / Supabase
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "contacts" TEXT;`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ALTER COLUMN "email" DROP NOT NULL;`).catch(() => {});
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ALTER COLUMN "company" DROP NOT NULL;`).catch(() => {});
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ALTER COLUMN "name" DROP NOT NULL;`).catch(() => {});
+    schemaChecked = true;
+  } catch {
+    // Fallback for SQLite
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE Lead ADD COLUMN contacts TEXT;`);
+      schemaChecked = true;
+    } catch {
+      schemaChecked = true;
+    }
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    await ensureLeadSchema();
 
     const CRM_READ_ROLES = ['Owner', 'Sales Manager', 'Sales Executive'];
     if (!CRM_READ_ROLES.includes(user.role)) {
@@ -53,9 +76,9 @@ export async function GET(request: Request) {
 
     const owner = isOwner(user);
     return NextResponse.json({ success: true, leads: leads.map((l: any) => scrubLead(l, owner)) });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Leads fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch leads' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to fetch leads' }, { status: 500 });
   }
 }
 
@@ -63,6 +86,8 @@ export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    await ensureLeadSchema();
 
     const body = await request.json();
     const {
@@ -160,8 +185,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ success: true, lead });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Lead creation error:', error);
-    return NextResponse.json({ error: 'Failed to create lead' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to create lead' }, { status: 500 });
   }
 }

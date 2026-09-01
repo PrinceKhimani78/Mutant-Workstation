@@ -3,6 +3,23 @@ import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { isOwner, scrubLead } from '@/lib/rbac';
 
+let schemaChecked = false;
+async function ensureLeadSchema() {
+  if (schemaChecked) return;
+  try {
+    // Postgres / Supabase
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "contacts" TEXT;`);
+    schemaChecked = true;
+  } catch {
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE Lead ADD COLUMN contacts TEXT;`);
+      schemaChecked = true;
+    } catch {
+      schemaChecked = true;
+    }
+  }
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -10,6 +27,8 @@ export async function GET(
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    await ensureLeadSchema();
 
     const { id } = await params;
     const lead = await db.lead.findUnique({
@@ -26,9 +45,9 @@ export async function GET(
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
 
     return NextResponse.json({ success: true, lead: scrubLead(lead, isOwner(user)) });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Lead fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch lead' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to fetch lead' }, { status: 500 });
   }
 }
 
@@ -39,6 +58,8 @@ export async function PATCH(
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    await ensureLeadSchema();
 
     const { id } = await params;
     const body = await request.json();
