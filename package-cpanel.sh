@@ -7,7 +7,7 @@ echo "📦 Packaging Mutant Workstation for cPanel Deployment..."
 npx prisma generate
 
 # Build Next.js app in standalone mode
-npm run build
+BUILD_STANDALONE=true npm run build
 
 # Prepare cpanel staging directory
 rm -rf cpanel_build
