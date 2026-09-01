@@ -41,16 +41,17 @@ model User {
 
 model Lead {
   id                  String   @id @default(uuid())
-  name                String
-  company             String
-  email               String
+  name                String   @default("")
+  company             String   @default("")
+  email               String   @default("")
   phone               String?
   whatsapp            String?
   website             String?
-  linkedin            String?
+  linkedin            String?  // Company LinkedIn Link
   country             String?
   industry            String?
-  source              String   // Upwork Profile 1 Prince, Upwork Profile 2 Het, Upwork Profile 3 Aman, LinkedIn, Cold Email, Website, Referral, Instagram, Facebook, Local, Other
+  source              String   @default("LinkedIn") // Upwork Profile 1 Prince, Upwork Profile 2 Het, Upwork Profile 3 Aman, LinkedIn, Cold Email, Website, Referral, Instagram, Facebook, Local, Other
+  contacts            String?  // JSON array string of decision makers: [{ name, designation, linkedin, email, phone }]
   assignedSalespersonId String?
   assignedSalesperson   User?    @relation("AssignedSales", fields: [assignedSalespersonId], references: [id])
   stageId             String

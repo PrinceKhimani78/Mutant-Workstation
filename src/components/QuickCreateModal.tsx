@@ -21,11 +21,13 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
     company: '',
     email: '',
     phone: '',
-    source: 'Upwork Profile 1 Prince',
+    linkedin: '',
+    source: 'LinkedIn',
     estimateType: 'Fixed',
     budget: '',
     hourlyRate: '',
     estimatedWeeklyHours: '',
+    contacts: [{ name: '', designation: '', linkedin: '', email: '', phone: '' }],
   });
 
   const [clientData, setClientData] = useState({
@@ -150,51 +152,116 @@ export function QuickCreateModal({ isOpen, onClose, onRefresh }: QuickCreateModa
           {tab === 'lead' && (
             <>
               <div>
-                <label className={labelClass}>Contact name *</label>
+                <label className={labelClass}>Company name (optional)</label>
                 <input
-                  required
-                  type="text"
-                  value={leadData.name}
-                  onChange={(e) => setLeadData({ ...leadData, name: e.target.value })}
-                  placeholder="e.g. Michael Scott"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Company name *</label>
-                <input
-                  required
                   type="text"
                   value={leadData.company}
                   onChange={(e) => setLeadData({ ...leadData, company: e.target.value })}
-                  placeholder="e.g. Dunder Mifflin Tech"
+                  placeholder="e.g. Acme Corporation"
                   className={inputClass}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelClass}>Email *</label>
-                  <input
-                    required
-                    type="email"
-                    value={leadData.email}
-                    onChange={(e) => setLeadData({ ...leadData, email: e.target.value })}
-                    placeholder="michael@dundermifflin.com"
-                    className={inputClass}
-                  />
+
+              <div>
+                <label className={labelClass}>Company LinkedIn URL (optional)</label>
+                <input
+                  type="text"
+                  value={leadData.linkedin}
+                  onChange={(e) => setLeadData({ ...leadData, linkedin: e.target.value })}
+                  placeholder="e.g. linkedin.com/company/acme"
+                  className={inputClass}
+                />
+              </div>
+
+              {/* Decision Makers List */}
+              <div className="space-y-2 pt-2 border-t border-[var(--border)]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-[var(--foreground)]">
+                    Decision Makers / Contact Persons (1, 2, 3+)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLeadData({
+                        ...leadData,
+                        contacts: [
+                          ...leadData.contacts,
+                          { name: '', designation: '', linkedin: '', email: '', phone: '' },
+                        ],
+                      })
+                    }
+                    className="text-[11px] text-[var(--primary)] font-medium hover:underline"
+                  >
+                    + Add Person
+                  </button>
                 </div>
+
+                {leadData.contacts.map((c, i) => (
+                  <div key={i} className="p-2.5 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] space-y-1.5 text-xs">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={c.name}
+                        onChange={(e) => {
+                          const copy = [...leadData.contacts];
+                          copy[i] = { ...copy[i], name: e.target.value };
+                          setLeadData({ ...leadData, contacts: copy });
+                        }}
+                        placeholder={`Person ${i + 1} Name`}
+                        className="input-minimal px-2 py-1.5 rounded-md text-xs bg-white"
+                      />
+                      <input
+                        type="text"
+                        value={c.designation || ''}
+                        onChange={(e) => {
+                          const copy = [...leadData.contacts];
+                          copy[i] = { ...copy[i], designation: e.target.value };
+                          setLeadData({ ...leadData, contacts: copy });
+                        }}
+                        placeholder="Title (e.g. CEO, CTO)"
+                        className="input-minimal px-2 py-1.5 rounded-md text-xs bg-white"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={c.linkedin || ''}
+                        onChange={(e) => {
+                          const copy = [...leadData.contacts];
+                          copy[i] = { ...copy[i], linkedin: e.target.value };
+                          setLeadData({ ...leadData, contacts: copy });
+                        }}
+                        placeholder="LinkedIn Profile URL"
+                        className="input-minimal px-2 py-1.5 rounded-md text-xs bg-white"
+                      />
+                      <input
+                        type="email"
+                        value={c.email || ''}
+                        onChange={(e) => {
+                          const copy = [...leadData.contacts];
+                          copy[i] = { ...copy[i], email: e.target.value };
+                          setLeadData({ ...leadData, contacts: copy });
+                        }}
+                        placeholder="Email"
+                        className="input-minimal px-2 py-1.5 rounded-md text-xs bg-white"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[var(--border)]">
                 <div>
-                  <label className={labelClass}>Lead source *</label>
+                  <label className={labelClass}>Lead source</label>
                   <select
                     value={leadData.source}
                     onChange={(e) => setLeadData({ ...leadData, source: e.target.value })}
                     className={inputClass}
                   >
+                    <option value="LinkedIn">LinkedIn</option>
                     <option value="Upwork Profile 1 Prince">Upwork · Prince</option>
                     <option value="Upwork Profile 2 Het">Upwork · Het</option>
                     <option value="Upwork Profile 3 Aman">Upwork · Aman</option>
-                    <option value="Bruntwork">Bruntwork</option>
-                    <option value="LinkedIn">LinkedIn</option>
                     <option value="Cold Email">Cold Email</option>
                     <option value="Website">Website</option>
                     <option value="Referral">Referral</option>

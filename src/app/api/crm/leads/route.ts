@@ -24,9 +24,11 @@ export async function GET(request: Request) {
         AND: [
           search ? {
             OR: [
-              { name: { contains: search } },
-              { company: { contains: search } },
-              { email: { contains: search } },
+              { name: { contains: search, mode: 'insensitive' } },
+              { company: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+              { contacts: { contains: search, mode: 'insensitive' } },
+              { linkedin: { contains: search, mode: 'insensitive' } },
             ],
           } : {},
           stageId ? { stageId } : {},
@@ -63,11 +65,36 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { name, company, email, phone, whatsapp, website, linkedin, country, industry, source, estimateType, budget, hourlyRate, estimatedWeeklyHours, probability, proposalValue, notes, assignedSalespersonId, stageId } = body;
+    const {
+      name, company, email, phone, whatsapp, website, linkedin, country, industry,
+      source, contacts, estimateType, budget, hourlyRate, estimatedWeeklyHours,
+      probability, proposalValue, notes, assignedSalespersonId, stageId,
+    } = body;
 
-    if (!name || !company || !email || !source) {
-      return NextResponse.json({ error: 'Name, company, email, and source are required' }, { status: 400 });
+    // Contacts can be passed as an array of decision makers or a JSON string
+    let parsedContacts: any[] = [];
+    let contactsJson: string | null = null;
+
+    if (Array.isArray(contacts)) {
+      parsedContacts = contacts.filter((c: any) => c && (c.name || c.designation || c.linkedin || c.email || c.phone));
+      contactsJson = parsedContacts.length > 0 ? JSON.stringify(parsedContacts) : null;
+    } else if (typeof contacts === 'string' && contacts.trim()) {
+      try {
+        parsedContacts = JSON.parse(contacts);
+        contactsJson = contacts.trim();
+      } catch {
+        contactsJson = null;
+      }
     }
+
+    const firstContact = parsedContacts[0] || {};
+
+    // All fields are optional: provide friendly fallbacks
+    const resolvedCompany = (company || '').trim() || (firstContact.name ? `${firstContact.name}'s Company` : 'Untitled Prospect');
+    const resolvedName = (name || '').trim() || firstContact.name || resolvedCompany;
+    const resolvedEmail = (email || '').trim() || firstContact.email || '';
+    const resolvedPhone = phone || firstContact.phone || null;
+    const resolvedSource = (source || '').trim() || 'LinkedIn';
 
     let resolvedStageId = stageId;
     if (!resolvedStageId) {
@@ -85,35 +112,40 @@ export async function POST(request: Request) {
         await db.pipelineStage.createMany({ data: STAGE_DEFS });
         defaultStage = await db.pipelineStage.findFirst({ orderBy: { order: 'asc' } });
       }
-      if (!defaultStage) {
-        return NextResponse.json({ error: 'No pipeline stages exist yet — create one first' }, { status: 400 });
-      }
-      resolvedStageId = defaultStage.id;
+      resolvedStageId = defaultStage?.id || '';
     }
 
     const lead = await db.lead.create({
       data: {
-        name,
-        company,
-        email,
-        phone,
-        whatsapp,
-        website,
-        linkedin,
-        country,
-        industry,
-        source,
+        name: resolvedName,
+        company: resolvedCompany,
+        email: resolvedEmail,
+        phone: resolvedPhone,
+        whatsapp: whatsapp || null,
+        website: website || null,
+        linkedin: linkedin || null,
+        country: country || null,
+        industry: industry || null,
+        source: resolvedSource,
+        contacts: contactsJson,
         estimateType: estimateType || 'Fixed',
         budget: budget ? parseFloat(budget) : null,
         hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null,
         estimatedWeeklyHours: estimatedWeeklyHours ? parseFloat(estimatedWeeklyHours) : null,
         probability: probability ? parseInt(probability) : 50,
         proposalValue: proposalValue ? parseFloat(proposalValue) : null,
-        notes,
+        notes: notes || null,
         assignedSalespersonId: assignedSalespersonId || user.id,
         stageId: resolvedStageId,
       },
-      include: { stage: true },
+      include: {
+        stage: true,
+        tags: true,
+        customFieldValues: { include: { field: true } },
+        assignedSalesperson: {
+          select: { id: true, name: true, avatarUrl: true, email: true },
+        },
+      },
     });
 
     // Create activity record
@@ -121,8 +153,8 @@ export async function POST(request: Request) {
       data: {
         leadId: lead.id,
         type: 'StatusChange',
-        title: 'Lead created',
-        description: `Lead created by ${user.name} via ${source}`,
+        title: 'Lead added to sheet',
+        description: `Lead created by ${user.name} via ${resolvedSource}`,
         createdBy: user.name,
       },
     });

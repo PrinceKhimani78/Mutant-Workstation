@@ -85,10 +85,21 @@ export default function LeadDetailPage() {
   }
 
   const startEdit = () => {
+    let parsedContacts: any[] = [];
+    try {
+      if (Array.isArray(lead.contacts)) parsedContacts = lead.contacts;
+      else if (lead.contacts) parsedContacts = JSON.parse(lead.contacts);
+    } catch {}
+
+    if (parsedContacts.length === 0) {
+      parsedContacts = [{ name: lead.name || '', designation: '', linkedin: '', email: lead.email || '', phone: lead.phone || '' }];
+    }
+
     setForm({
       name: lead.name, company: lead.company, email: lead.email, phone: lead.phone || '',
       whatsapp: lead.whatsapp || '', website: lead.website || '', linkedin: lead.linkedin || '',
       country: lead.country || '', industry: lead.industry || '',
+      contacts: parsedContacts,
       estimateType: lead.estimateType || 'Fixed',
       budget: lead.budget ?? '', hourlyRate: lead.hourlyRate ?? '', estimatedWeeklyHours: lead.estimatedWeeklyHours ?? '',
       probability: lead.probability ?? '', proposalValue: lead.proposalValue ?? '',
@@ -97,10 +108,22 @@ export default function LeadDetailPage() {
   };
 
   const saveEdit = async () => {
+    const validContacts = (form.contacts || []).filter(
+      (c: any) => c.name?.trim() || c.designation?.trim() || c.linkedin?.trim() || c.email?.trim() || c.phone?.trim()
+    );
+
+    const payload = {
+      ...form,
+      contacts: validContacts,
+      name: validContacts[0]?.name || form.company || 'Untitled Lead',
+      email: validContacts[0]?.email || form.email || '',
+      phone: validContacts[0]?.phone || form.phone || null,
+    };
+
     const res = await fetch(`/api/crm/leads/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (data.lead) setLead(data.lead);
@@ -246,7 +269,122 @@ export default function LeadDetailPage() {
 
             {editing ? (
               <div className="space-y-2.5">
-                {['name', 'company', 'email', 'phone', 'whatsapp', 'website', 'linkedin', 'country', 'industry'].map((key) => (
+                <div>
+                  <label className="block text-[10px] font-medium text-[var(--muted-foreground)] mb-0.5">Company Name</label>
+                  <input
+                    value={form.company ?? ''}
+                    onChange={(e) => setForm({ ...form, company: e.target.value })}
+                    className="input-minimal w-full px-2.5 py-1.5 rounded-md text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-medium text-[var(--muted-foreground)] mb-0.5">Company LinkedIn Link</label>
+                  <input
+                    value={form.linkedin ?? ''}
+                    onChange={(e) => setForm({ ...form, linkedin: e.target.value })}
+                    className="input-minimal w-full px-2.5 py-1.5 rounded-md text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-medium text-[var(--muted-foreground)] mb-0.5">Website</label>
+                  <input
+                    value={form.website ?? ''}
+                    onChange={(e) => setForm({ ...form, website: e.target.value })}
+                    className="input-minimal w-full px-2.5 py-1.5 rounded-md text-xs"
+                  />
+                </div>
+
+                {/* Decision Makers editor */}
+                <div className="space-y-2 pt-2 border-t border-[var(--border)]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-[var(--foreground)]">Decision Makers (1, 2, 3+)</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          contacts: [
+                            ...(form.contacts || []),
+                            { name: '', designation: '', linkedin: '', email: '', phone: '' },
+                          ],
+                        })
+                      }
+                      className="text-[10px] text-[var(--primary)] font-medium hover:underline"
+                    >
+                      + Add Person
+                    </button>
+                  </div>
+
+                  {(form.contacts || []).map((c: any, idx: number) => (
+                    <div key={idx} className="p-2 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium text-[var(--muted-foreground)]">Person #{idx + 1}</span>
+                        {(form.contacts || []).length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setForm({
+                                ...form,
+                                contacts: form.contacts.filter((_: any, i: number) => i !== idx),
+                              })
+                            }
+                            className="text-[10px] text-[var(--danger)] hover:underline"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <input
+                          value={c.name ?? ''}
+                          onChange={(e) => {
+                            const copy = [...form.contacts];
+                            copy[idx] = { ...copy[idx], name: e.target.value };
+                            setForm({ ...form, contacts: copy });
+                          }}
+                          placeholder="Name"
+                          className="input-minimal px-2 py-1 rounded text-xs bg-white"
+                        />
+                        <input
+                          value={c.designation ?? ''}
+                          onChange={(e) => {
+                            const copy = [...form.contacts];
+                            copy[idx] = { ...copy[idx], designation: e.target.value };
+                            setForm({ ...form, contacts: copy });
+                          }}
+                          placeholder="Title (e.g. CEO)"
+                          className="input-minimal px-2 py-1 rounded text-xs bg-white"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <input
+                          value={c.linkedin ?? ''}
+                          onChange={(e) => {
+                            const copy = [...form.contacts];
+                            copy[idx] = { ...copy[idx], linkedin: e.target.value };
+                            setForm({ ...form, contacts: copy });
+                          }}
+                          placeholder="LinkedIn URL"
+                          className="input-minimal px-2 py-1 rounded text-xs bg-white"
+                        />
+                        <input
+                          value={c.email ?? ''}
+                          onChange={(e) => {
+                            const copy = [...form.contacts];
+                            copy[idx] = { ...copy[idx], email: e.target.value };
+                            setForm({ ...form, contacts: copy });
+                          }}
+                          placeholder="Email"
+                          className="input-minimal px-2 py-1 rounded text-xs bg-white"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {['whatsapp', 'country', 'industry'].map((key) => (
                   <div key={key}>
                     <label className="block text-[10px] font-medium text-[var(--muted-foreground)] mb-0.5 capitalize">{key}</label>
                     <input
@@ -301,17 +439,85 @@ export default function LeadDetailPage() {
                 </button>
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-3">
+                {/* Decision Makers List */}
+                {(() => {
+                  let dmList: any[] = [];
+                  try {
+                    if (Array.isArray(lead.contacts)) dmList = lead.contacts;
+                    else if (lead.contacts) dmList = JSON.parse(lead.contacts);
+                  } catch {}
+
+                  if (dmList.length > 0) {
+                    return (
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-semibold uppercase text-[var(--muted-foreground)] tracking-wide">
+                          Decision Makers ({dmList.length})
+                        </span>
+                        {dmList.map((dm, idx) => (
+                          <div key={idx} className="p-2.5 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] text-xs space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-[var(--foreground)]">{dm.name || `Person ${idx + 1}`}</span>
+                              {dm.designation && (
+                                <span className="badge bg-[var(--primary)]/10 text-[var(--primary)] text-[10px] px-1.5 py-0.2 rounded font-medium">
+                                  {dm.designation}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2 text-[11px] text-[var(--muted-foreground)]">
+                              {dm.linkedin && (
+                                <a
+                                  href={dm.linkedin.startsWith('http') ? dm.linkedin : `https://${dm.linkedin}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[#0077b5] hover:underline flex items-center gap-1"
+                                >
+                                  <Link2 className="w-3 h-3" />
+                                  <span>LinkedIn</span>
+                                </a>
+                              )}
+                              {dm.email && (
+                                <a href={`mailto:${dm.email}`} className="hover:underline flex items-center gap-1">
+                                  <Mail className="w-3 h-3" />
+                                  <span>{dm.email}</span>
+                                </a>
+                              )}
+                              {dm.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="w-3 h-3" />
+                                  <span>{dm.phone}</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
                 {FIELD_ROWS.filter((f) => lead[f.key]).map((f) => {
                   const Icon = f.icon;
                   return (
                     <div key={f.key} className="flex items-center gap-2.5 text-xs">
                       <Icon className="w-3.5 h-3.5 text-[var(--primary)] shrink-0" />
-                      <span className="text-[var(--foreground)] truncate">{lead[f.key]}</span>
+                      {f.key === 'linkedin' ? (
+                        <a
+                          href={lead[f.key].startsWith('http') ? lead[f.key] : `https://${lead[f.key]}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#0077b5] hover:underline truncate"
+                        >
+                          {lead[f.key]}
+                        </a>
+                      ) : (
+                        <span className="text-[var(--foreground)] truncate">{lead[f.key]}</span>
+                      )}
                     </div>
                   );
                 })}
-                {FIELD_ROWS.every((f) => !lead[f.key]) && (
+                {FIELD_ROWS.every((f) => !lead[f.key]) && !lead.contacts && (
                   <p className="text-xs text-[var(--muted-foreground)]">No contact details yet.</p>
                 )}
               </div>

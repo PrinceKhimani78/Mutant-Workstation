@@ -48,17 +48,31 @@ export async function PATCH(
 
     const allowed = [
       'name', 'company', 'email', 'phone', 'whatsapp', 'website', 'linkedin',
-      'country', 'industry', 'source', 'estimateType', 'budget', 'hourlyRate',
+      'country', 'industry', 'source', 'contacts', 'estimateType', 'budget', 'hourlyRate',
       'estimatedWeeklyHours', 'probability', 'proposalValue',
       'notes', 'assignedSalespersonId', 'stageId', 'isGhosted', 'expectedCloseDate',
     ];
     const data: Record<string, any> = {};
     for (const key of allowed) {
       if (key in body) {
-        if (['budget', 'proposalValue', 'hourlyRate', 'estimatedWeeklyHours'].includes(key)) data[key] = body[key] === '' || body[key] === null ? null : parseFloat(body[key]);
-        else if (key === 'probability') data[key] = body[key] === '' || body[key] === null ? null : parseInt(body[key]);
-        else if (key === 'expectedCloseDate') data[key] = body[key] ? new Date(body[key]) : null;
-        else data[key] = body[key];
+        if (key === 'contacts') {
+          if (Array.isArray(body.contacts)) {
+            const filtered = body.contacts.filter((c: any) => c && (c.name || c.designation || c.linkedin || c.email || c.phone));
+            data.contacts = filtered.length > 0 ? JSON.stringify(filtered) : null;
+          } else if (typeof body.contacts === 'string') {
+            data.contacts = body.contacts.trim() || null;
+          } else {
+            data.contacts = null;
+          }
+        } else if (['budget', 'proposalValue', 'hourlyRate', 'estimatedWeeklyHours'].includes(key)) {
+          data[key] = body[key] === '' || body[key] === null ? null : parseFloat(body[key]);
+        } else if (key === 'probability') {
+          data[key] = body[key] === '' || body[key] === null ? null : parseInt(body[key]);
+        } else if (key === 'expectedCloseDate') {
+          data[key] = body[key] ? new Date(body[key]) : null;
+        } else {
+          data[key] = body[key];
+        }
       }
     }
 

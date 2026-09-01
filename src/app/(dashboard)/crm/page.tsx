@@ -7,17 +7,19 @@ import {
   Search,
   Kanban,
   Table as TableIcon,
+  FileSpreadsheet,
   Ghost,
   Trash2,
 } from 'lucide-react';
 import { PipelineBoard } from '@/components/crm/PipelineBoard';
+import { LeadSheet } from '@/components/crm/LeadSheet';
 import { formatEstimate } from '@/lib/leadEstimate';
 import { AccessGuard } from '@/components/AccessGuard';
 
 const CRM_WRITE_ROLES = ['Owner', 'Sales Manager', 'Sales Executive', 'Marketing Manager', 'Marketing Executive'];
 
 function CRMContent() {
-  const [view, setView] = useState<'kanban' | 'table'>('kanban');
+  const [view, setView] = useState<'sheet' | 'kanban' | 'table'>('sheet');
   const [leads, setLeads] = useState<any[]>([]);
   const [stages, setStages] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -136,9 +138,10 @@ function CRMContent() {
 
   const filteredLeads = leads.filter((lead) => {
     const matchesSearch =
-      lead.name.toLowerCase().includes(search.toLowerCase()) ||
-      lead.company.toLowerCase().includes(search.toLowerCase()) ||
-      lead.email.toLowerCase().includes(search.toLowerCase());
+      (lead.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (lead.company || '').toLowerCase().includes(search.toLowerCase()) ||
+      (lead.email || '').toLowerCase().includes(search.toLowerCase()) ||
+      (lead.contacts || '').toLowerCase().includes(search.toLowerCase());
     const matchesSource = selectedSource ? lead.source === selectedSource : true;
     const matchesGhosted = hideGhosted ? !lead.isGhosted : true;
     return matchesSearch && matchesSource && matchesGhosted;
@@ -153,13 +156,24 @@ function CRMContent() {
         <div>
           <h2 className="text-lg font-bold text-[var(--foreground)] flex items-center gap-2">
             <Users className="w-4.5 h-4.5 text-[var(--primary)]" />
-            <span>CRM sales pipeline</span>
+            <span>CRM & LinkedIn Prospecting</span>
           </h2>
-          <p className="text-xs text-[var(--muted-foreground)]">Drag leads between stages, or drag a column header to reorder the pipeline.</p>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Manage LinkedIn prospect sheets, decision makers (1, 2, 3+ contacts), and sales pipeline stages.
+          </p>
         </div>
 
         {/* View Toggle */}
-        <div className="flex items-center p-1 rounded-lg bg-[var(--surface-muted)] w-fit">
+        <div className="flex items-center p-1 rounded-lg bg-[var(--surface-muted)] w-fit border border-[var(--border)]">
+          <button
+            onClick={() => setView('sheet')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              view === 'sheet' ? 'bg-white text-[var(--foreground)] shadow-sm' : 'text-[var(--muted-foreground)]'
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-[#0077b5]" />
+            <span>Prospect Sheet</span>
+          </button>
           <button
             onClick={() => setView('kanban')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
@@ -181,152 +195,165 @@ function CRMContent() {
         </div>
       </div>
 
-      {/* Filter and Stats Bar */}
-      <div className="card p-3.5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 flex-1 min-w-[240px] flex-wrap">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search className="w-4 h-4 text-[var(--muted-foreground)] absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter by company, name, email…"
-              className="input-minimal w-full pl-9 pr-3 py-2 rounded-lg text-xs"
-            />
-          </div>
-
-          <select
-            value={selectedSource}
-            onChange={(e) => setSelectedSource(e.target.value)}
-            className="input-minimal px-2.5 py-2 rounded-lg text-xs"
-          >
-            <option value="">All sources</option>
-            <option value="Upwork Profile 1 Prince">Upwork · Prince</option>
-            <option value="Upwork Profile 2 Het">Upwork · Het</option>
-            <option value="Upwork Profile 3 Aman">Upwork · Aman</option>
-            <option value="Bruntwork">Bruntwork</option>
-            <option value="LinkedIn">LinkedIn</option>
-            <option value="Cold Email">Cold Email</option>
-            <option value="Website">Website</option>
-          </select>
-
-          <button
-            onClick={() => setHideGhosted((v) => !v)}
-            className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors ${
-              hideGhosted ? 'border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]' : 'border-[var(--border)] text-[var(--muted-foreground)]'
-            }`}
-          >
-            <Ghost className="w-3.5 h-3.5" />
-            Hide ghosted
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3 text-xs shrink-0">
-          <span className="text-[var(--muted-foreground)]">
-            <strong className="text-[var(--foreground)] font-semibold">{filteredLeads.length}</strong> leads
-          </span>
-          {isOwner && (
-            <span className="text-[var(--primary)] font-semibold">
-              ${totalValue.toLocaleString()}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* View Content */}
-      {view === 'kanban' ? (
-        stages.length > 0 && (
-          <PipelineBoard
-            stages={stages}
-            leads={filteredLeads}
-            isOwner={isOwner}
-            canManageStages={canManageStages}
-            onStageChange={handleStageChange}
-            onToggleGhosted={toggleGhosted}
-            onDeleteLead={deleteLead}
-            onReorderStages={reorderStages}
-            onCreateStage={createStage}
-            onUpdateStage={updateStage}
-            onRequestDeleteStage={requestDeleteStage}
-          />
-        )
+      {/* Main Content Area Based on Active View */}
+      {view === 'sheet' ? (
+        <LeadSheet
+          leads={leads}
+          stages={stages}
+          isOwner={isOwner}
+          onRefresh={fetchLeads}
+          onStageChange={handleStageChange}
+          onDeleteLead={deleteLead}
+        />
       ) : (
-        /* Table View */
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--surface-muted)] text-[var(--muted-foreground)] uppercase text-[10px]">
-                  <th className="p-3.5 font-semibold">Company & contact</th>
-                  <th className="p-3.5 font-semibold">Tags</th>
-                  <th className="p-3.5 font-semibold">Source</th>
-                  <th className="p-3.5 font-semibold">Stage</th>
-                  {isOwner && <th className="p-3.5 font-semibold">Budget</th>}
-                  <th className="p-3.5 font-semibold">Assigned</th>
-                  <th className="p-3.5 font-semibold"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {filteredLeads.map((lead) => (
-                  <tr key={lead.id} className={`hover:bg-[var(--surface-muted)] transition-colors ${lead.isGhosted ? 'opacity-60' : ''}`}>
-                    <td className="p-3.5">
-                      <Link href={`/crm/${lead.id}`} className="hover:underline">
-                        <p className="font-semibold text-[var(--foreground)] flex items-center gap-1.5">
-                          {lead.company}
-                          {lead.isGhosted && <Ghost className="w-3 h-3 text-[var(--muted-foreground)]" />}
-                        </p>
-                      </Link>
-                      <p className="text-[11px] text-[var(--muted-foreground)]">{lead.name} · {lead.email}</p>
-                    </td>
-                    <td className="p-3.5">
-                      <div className="flex flex-wrap gap-1 max-w-[160px]">
-                        {lead.tags?.map((t: any) => (
-                          <span key={t.id} className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: `${t.color}1a`, color: t.color }}>
-                            {t.name}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="p-3.5 text-[var(--muted-foreground)]">{lead.source}</td>
-                    <td className="p-3.5">
-                      <span
-                        className="badge px-2 py-0.5 text-[10px]"
-                        style={{ backgroundColor: `${lead.stage?.color}1a`, color: lead.stage?.color }}
-                      >
-                        {lead.stage?.name}
-                      </span>
-                    </td>
-                    {isOwner && <td className="p-3.5 font-semibold text-[var(--foreground)]">{formatEstimate(lead)}</td>}
-                    <td className="p-3.5 text-[var(--muted-foreground)]">{lead.assignedSalesperson?.name || '—'}</td>
-                    <td className="p-3.5">
-                      <div className="flex items-center gap-1 justify-end">
-                        <button
-                          onClick={() => toggleGhosted(lead)}
-                          title={lead.isGhosted ? 'Mark as active' : 'Mark as ghosted'}
-                          className="p-1.5 rounded-md text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]"
-                        >
-                          <Ghost className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => deleteLead(lead.id)}
-                          title="Delete lead"
-                          className="p-1.5 rounded-md text-[var(--muted-foreground)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)]"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredLeads.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="p-8 text-center text-[var(--muted-foreground)]">No leads match your filters.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+        <>
+          {/* Filter and Stats Bar for Kanban & Table views */}
+          <div className="card p-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 flex-1 min-w-[240px] flex-wrap">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="w-4 h-4 text-[var(--muted-foreground)] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filter by company, name, email…"
+                  className="input-minimal w-full pl-9 pr-3 py-2 rounded-lg text-xs"
+                />
+              </div>
+
+              <select
+                value={selectedSource}
+                onChange={(e) => setSelectedSource(e.target.value)}
+                className="input-minimal px-2.5 py-2 rounded-lg text-xs"
+              >
+                <option value="">All sources</option>
+                <option value="LinkedIn">LinkedIn</option>
+                <option value="Upwork Profile 1 Prince">Upwork · Prince</option>
+                <option value="Upwork Profile 2 Het">Upwork · Het</option>
+                <option value="Upwork Profile 3 Aman">Upwork · Aman</option>
+                <option value="Cold Email">Cold Email</option>
+                <option value="Website">Website</option>
+                <option value="Referral">Referral</option>
+              </select>
+
+              <button
+                onClick={() => setHideGhosted((v) => !v)}
+                className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                  hideGhosted ? 'border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]' : 'border-[var(--border)] text-[var(--muted-foreground)]'
+                }`}
+              >
+                <Ghost className="w-3.5 h-3.5" />
+                Hide ghosted
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 text-xs shrink-0">
+              <span className="text-[var(--muted-foreground)]">
+                <strong className="text-[var(--foreground)] font-semibold">{filteredLeads.length}</strong> leads
+              </span>
+              {isOwner && (
+                <span className="text-[var(--primary)] font-semibold">
+                  ${totalValue.toLocaleString()}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+
+          {view === 'kanban' ? (
+            stages.length > 0 && (
+              <PipelineBoard
+                stages={stages}
+                leads={filteredLeads}
+                isOwner={isOwner}
+                canManageStages={canManageStages}
+                onStageChange={handleStageChange}
+                onToggleGhosted={toggleGhosted}
+                onDeleteLead={deleteLead}
+                onReorderStages={reorderStages}
+                onCreateStage={createStage}
+                onUpdateStage={updateStage}
+                onRequestDeleteStage={requestDeleteStage}
+              />
+            )
+          ) : (
+            /* Table View */
+            <div className="card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-[var(--border)] bg-[var(--surface-muted)] text-[var(--muted-foreground)] uppercase text-[10px]">
+                      <th className="p-3.5 font-semibold">Company & contact</th>
+                      <th className="p-3.5 font-semibold">Tags</th>
+                      <th className="p-3.5 font-semibold">Source</th>
+                      <th className="p-3.5 font-semibold">Stage</th>
+                      {isOwner && <th className="p-3.5 font-semibold">Budget</th>}
+                      <th className="p-3.5 font-semibold">Assigned</th>
+                      <th className="p-3.5 font-semibold"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border)]">
+                    {filteredLeads.map((lead) => (
+                      <tr key={lead.id} className={`hover:bg-[var(--surface-muted)] transition-colors ${lead.isGhosted ? 'opacity-60' : ''}`}>
+                        <td className="p-3.5">
+                          <Link href={`/crm/${lead.id}`} className="hover:underline">
+                            <p className="font-semibold text-[var(--foreground)] flex items-center gap-1.5">
+                              {lead.company || lead.name || 'Untitled'}
+                              {lead.isGhosted && <Ghost className="w-3 h-3 text-[var(--muted-foreground)]" />}
+                            </p>
+                          </Link>
+                          <p className="text-[11px] text-[var(--muted-foreground)]">{lead.name} · {lead.email || 'No email'}</p>
+                        </td>
+                        <td className="p-3.5">
+                          <div className="flex flex-wrap gap-1 max-w-[160px]">
+                            {lead.tags?.map((t: any) => (
+                              <span key={t.id} className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: `${t.color}1a`, color: t.color }}>
+                                {t.name}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="p-3.5 text-[var(--muted-foreground)]">{lead.source}</td>
+                        <td className="p-3.5">
+                          <span
+                            className="badge px-2 py-0.5 text-[10px]"
+                            style={{ backgroundColor: `${lead.stage?.color}1a`, color: lead.stage?.color }}
+                          >
+                            {lead.stage?.name}
+                          </span>
+                        </td>
+                        {isOwner && <td className="p-3.5 font-semibold text-[var(--foreground)]">{formatEstimate(lead)}</td>}
+                        <td className="p-3.5 text-[var(--muted-foreground)]">{lead.assignedSalesperson?.name || '—'}</td>
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-1 justify-end">
+                            <button
+                              onClick={() => toggleGhosted(lead)}
+                              title={lead.isGhosted ? 'Mark as active' : 'Mark as ghosted'}
+                              className="p-1.5 rounded-md text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]"
+                            >
+                              <Ghost className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => deleteLead(lead.id)}
+                              title="Delete lead"
+                              className="p-1.5 rounded-md text-[var(--muted-foreground)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)]"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredLeads.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-[var(--muted-foreground)]">No leads match your filters.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Reassign-then-delete stage dialog */}
